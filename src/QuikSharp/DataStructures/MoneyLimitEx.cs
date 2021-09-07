@@ -3,7 +3,7 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// Лимиты по денежным средствам
@@ -39,75 +39,109 @@ namespace QuikSharp.DataStructures
         /// Входящий остаток по деньгам
         /// </summary>
         [JsonProperty("openbal")]
-        public double OpenBal { get; set; }
+        public decimal OpenBal { get; set; }
 
         /// <summary>
         /// Входящий лимит по деньгам
         /// </summary>
         [JsonProperty("openlimit")]
-        public double OpenLimit { get; set; }
+        public decimal OpenLimit { get; set; }
 
         /// <summary>
         /// Текущий остаток по деньгам
         /// </summary>
         [JsonProperty("currentbal")]
-        public double CurrentBal { get; set; }
+        public decimal CurrentBal { get; set; }
 
         /// <summary>
         /// Текущий лимит по деньгам
         /// </summary>
         [JsonProperty("currentlimit")]
-        public double CurrentLimit { get; set; }
+        public decimal CurrentLimit { get; set; }
 
         /// <summary>
         /// Заблокированное количество
         /// </summary>
         [JsonProperty("locked")]
-        public double Locked { get; set; }
+        public decimal Locked { get; set; }
 
         /// <summary>
         /// Стоимость активов в заявках на покупку немаржинальных бумаг
         /// </summary>
         [JsonProperty("locked_value_coef")]
-        public double LockedValueCoef { get; set; }
+        public decimal LockedValueCoef { get; set; }
 
         /// <summary>
         /// Стоимость активов в заявках на покупку маржинальных бумаг
         /// </summary>
         [JsonProperty("locked_margin_value")]
-        public double LockedMarginValue { get; set; }
+        public decimal LockedMarginValue { get; set; }
 
         /// <summary>
         /// Плечо
         /// </summary>
         [JsonProperty("leverage")]
-        public double Leverage { get; set; }
-
-        /// <summary>
-        /// Тип лимита. Возможные значения:
-        /// «0» – обычные лимиты,
-        /// иначе – технологические лимиты
-        /// </summary>
-        [JsonProperty("limit_kind")]
-        public int LimitKind { get; set; }
+        public decimal Leverage { get; set; }
 
         /// <summary>
         /// Средневзвешенная цена приобретения позиции
         /// </summary>
         [JsonProperty("wa_position_price")]
-        public double WaPositionPrice { get; set; }
+        public decimal WaPositionPrice { get; set; }
 
         /// <summary>
         /// Гарантийное обеспечение заявок
         /// </summary>
         [JsonProperty("orders_collateral")]
-        public double OrdersCollateral { get; set; }
+        public decimal OrdersCollateral { get; set; }
 
         /// <summary>
         /// Гарантийное обеспечение позиций
         /// </summary>
         [JsonProperty("positions_collateral")]
-        public double PositionsCollateral { get; set; }
+        public decimal PositionsCollateral { get; set; }
+
+        /// <summary>
+        /// Тип лимита. Возможные значения:
+        /// «0»,«1»,«2»,«365» – обычные лимиты,
+        /// значение меньше «0» – технологические лимиты
+        /// </summary>
+        [JsonProperty("limit_kind")]
+        public int LimitKindInt
+        {
+            get { return (int)LimitKind; }
+            set
+            {
+                switch (value)
+                {
+                    case 0:
+                        LimitKind = LimitKind.T0;
+                        break;
+
+                    case 1:
+                        LimitKind = LimitKind.T1;
+                        break;
+
+                    case 2:
+                        LimitKind = LimitKind.T2;
+                        break;
+
+                    case 365:
+                        LimitKind = LimitKind.T365;
+                        break;
+
+                    default:
+                        LimitKind = LimitKind.NotImplemented;
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Тип лимита бумаги (Т0, Т1 или Т2).
+        /// </summary>
+        [JsonIgnore]
+        public LimitKind LimitKind { get; private set; }
 
         // ReSharper restore InconsistentNaming
     }

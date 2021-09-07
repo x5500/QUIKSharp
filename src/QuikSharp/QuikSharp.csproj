@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net461;netstandard2.0</TargetFrameworks>
+        <TargetFrameworks>net472;netstandard2.0;net5.0</TargetFrameworks>
         <AssemblyName>QUIKSharp</AssemblyName>
         <RootNamespace>QUIKSharp</RootNamespace>
         <AssemblyOriginatorKeyFile>../../QUIKSharpKey.snk</AssemblyOriginatorKeyFile>
@@ -16,33 +16,65 @@
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/finsight/QUIKSharp.git</RepositoryUrl>
-        <Authors>Victor Baybekov and QUIK# contributers</Authors>
-        <Company/>
-        <Product/>
-        <Copyright>Victor Baybekov and QUIK# contributers</Copyright>
+        <Authors>mod by Alex.Mishin, Copyright (c) 2014-2020 QUIKSharp Authors</Authors>
+        <Company>mod by Alex.Mishin, Copyright (c) 2014-2020 QUIKSharp Authors</Company>
+        <Product />
+        <Copyright>mod by Alex.Mishin, Copyright (c) 2014-2020 QUIKSharp Authors</Copyright>
         <Description>QUIK# (QUIK Sharp) is the QUIK Lua interface ported to .NET. QUIK# exposes all functions and events available in QLUA as C# async functions and events.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <NoWarn>$(NoWarn),1591</NoWarn>
+        <NoWarn>1701;1702,1591;IDE0090;IDE1006;IDE0063</NoWarn>
         <IncludeSource>true</IncludeSource>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+        <Platforms>AnyCPU;x64</Platforms>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <OutputType>Library</OutputType>
+        <StartupObject></StartupObject>
+        <AnalysisLevel>5.0</AnalysisLevel>
+        <Version>2.1.0</Version>
     </PropertyGroup>
-
-    <ItemGroup>
-        <None Remove="lua\**\*.*"/>
-        <Content Include="lua\**\*.*"/>
+    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net472|AnyCPU'">
+		<Title>QUIKSharp for .NET 4.7.2 AnyCPU</Title>
+		<DocumentationFile>obj\Debug\net472\QUIKSharp.xml</DocumentationFile>
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
+	</PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net472|x64'">
+		<Title>QUIKSharp for .NET 4.7.2 x64</Title>
+		<DocumentationFile>obj\Debug\net472\QUIKSharp.xml</DocumentationFile>
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
+    </PropertyGroup>
+	<PropertyGroup Condition=" '$(TargetFramework)' == 'net5.0' ">
+		<Title>QUIKSharp for .NET 5.0</Title>
+		<DefineConstants>$(DefineConstants);NETSTANDARD</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net472|x64'">
+	  <DefineConstants>TRACE</DefineConstants>
+	</PropertyGroup>
+	<ItemGroup>
+        <None Remove="lua\**\*.*" />
+        <Content Include="lua\**\*.*" />
     </ItemGroup>
-
     <ItemGroup>
-        <PackageReference Include="Newtonsoft.Json" Version="12.0.3"/>
-        <PackageReference Include="System.Buffers" Version="4.5.1"/>
-        <PackageReference Include="System.Text.Encoding.CodePages" Version="4.7.0"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+        <PackageReference Include="NLog" Version="4.7.11" />
+		<PackageReference Include="System.Buffers" Version="4.5.1" />
+		<PackageReference Include="System.Text.Encoding.CodePages" Version="5.0.0" />
+        <PackageReference Include="System.Threading.Tasks.Dataflow" Version="5.0.0" />
+	</ItemGroup>	    
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.2">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net5.0' ">
+	</ItemGroup>
+    <ItemGroup>
+      <None Include="..\..\.editorconfig" Link=".editorconfig" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="System.Threading.Channels" Version="4.7.1"/>
-    </ItemGroup>
-    <ItemGroup>
-        <Folder Include="lua\logs"/>
+      <ProjectReference Include="..\..\..\AsyncCollections\AsyncCollections\AsyncCollections.csproj" />
     </ItemGroup>
 </Project>

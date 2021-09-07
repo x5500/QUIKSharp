@@ -3,13 +3,16 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// Таблица с параметрами обезличенной сделки
     /// </summary>
-    public class AllTrade : IWithLuaTimeStamp
+    public class AllTrade : IWithLuaTimeStamp, ISecurity
     {
+        [JsonProperty("lua_timestamp")]
+        public LuaTimeStamp lua_timestamp { get; set; }
+
         /// <summary>
         /// Номер сделки в торговой системе
         /// </summary>
@@ -28,7 +31,7 @@ namespace QuikSharp.DataStructures
         /// Цена
         /// </summary>
         [JsonProperty("price")]
-        public double Price { get; set; }
+        public decimal Price { get; set; }
 
         /// <summary>
         /// Количество бумаг в последней сделке в лотах
@@ -40,19 +43,19 @@ namespace QuikSharp.DataStructures
         /// Объем в денежных средствах
         /// </summary>
         [JsonProperty("value")]
-        public double Value { get; set; }
+        public decimal Value { get; set; }
 
         /// <summary>
         /// Накопленный купонный доход
         /// </summary>
         [JsonProperty("accruedint")]
-        public double Accruedint { get; set; }
+        public decimal Accruedint { get; set; }
 
         /// <summary>
         /// Доходность
         /// </summary>
         [JsonProperty("yield")]
-        public double Yield { get; set; }
+        public decimal Yield { get; set; }
 
         /// <summary>
         /// Код расчетов
@@ -64,19 +67,19 @@ namespace QuikSharp.DataStructures
         /// Ставка РЕПО (%)
         /// </summary>
         [JsonProperty("reporate")]
-        public double Reporate { get; set; }
+        public decimal Reporate { get; set; }
 
         /// <summary>
         /// Сумма РЕПО
         /// </summary>
         [JsonProperty("repovalue")]
-        public double Repovalue { get; set; }
+        public decimal Repovalue { get; set; }
 
         /// <summary>
         /// Объем выкупа РЕПО
         /// </summary>
         [JsonProperty("repo2value")]
-        public double Repo2Value { get; set; }
+        public decimal Repo2Value { get; set; }
 
         /// <summary>
         /// Срок РЕПО в днях
@@ -115,7 +118,7 @@ namespace QuikSharp.DataStructures
         /// Открытый интерес
         /// </summary>
         [JsonProperty("open_interest")]
-        public double OpenInterest { get; set; }
+        public decimal OpenInterest { get; set; }
 
         /// <summary>
         /// Код биржи в торговой системе
@@ -128,7 +131,5 @@ namespace QuikSharp.DataStructures
         /// </summary>
         [JsonProperty("exec_market")]
         public string ExecMarket { get; set; }
-
-        public long LuaTimeStamp { get; set; }
     }
 }

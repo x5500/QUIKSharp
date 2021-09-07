@@ -1,12 +1,15 @@
 ﻿// Copyright (c) 2014-2020 QUIKSharp Authors https://github.com/finsight/QUIKSharp/blob/master/AUTHORS.md. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
-namespace QuikSharp.DataStructures
+using Newtonsoft.Json;
+using QUIKSharp.Converters;
+
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// Стакан
     /// </summary>
-    public class OrderBook : IWithLuaTimeStamp
+    public class OrderBook : IWithLuaTimeStamp, ISecurity
     {
         // ReSharper disable InconsistentNaming
         /// <summary>
@@ -17,28 +20,31 @@ namespace QuikSharp.DataStructures
             /// <summary>
             /// Цена покупки / продажи
             /// </summary>
-            public double price { get; set; }
+            public decimal price { get; set; }
 
             /// <summary>
             /// Количество в лотах
             /// </summary>
-            public double quantity { get; set; }
+            [JsonConverter(typeof(NUMBER_Converter<long>))]
+            public long quantity { get; set; }
         }
 
         /// <summary>
-        /// Код класса
+        /// sec_code  STRING  Код бумаги
         /// </summary>
-        public string class_code { get; set; }
+        [JsonProperty("sec_code")]
+        public string SecCode { get; set; }
 
         /// <summary>
-        /// Код бумаги
+        /// class_code  STRING  Код бумаги
         /// </summary>
-        public string sec_code { get; set; }
+        [JsonProperty("class_code")]
+        public string ClassCode { get; set; }
 
         /// <summary>
         /// time in msec from lua epoch
         /// </summary>
-        public long LuaTimeStamp { get; set; }
+        public LuaTimeStamp lua_timestamp { get; set; }
 
         /// <summary>
         /// Result of getInfoParam("SERVERTIME") right before getQuoteLevel2 call
@@ -48,12 +54,14 @@ namespace QuikSharp.DataStructures
         /// <summary>
         /// Количество котировок покупки
         /// </summary>
-        public double bid_count { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long>))]
+        public long bid_count { get; set; }
 
         /// <summary>
         /// Количество котировок продажи
         /// </summary>
-        public double offer_count { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long>))]
+        public long offer_count { get; set; }
 
         /// <summary>
         /// Котировки спроса (покупки)

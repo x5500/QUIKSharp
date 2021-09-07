@@ -3,15 +3,15 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures.Transaction
+namespace QUIKSharp.DataStructures.Transaction
 {
     /// <summary>
     /// Описание параметров Таблицы сделок
     /// </summary>
-    public class Trade : IWithLuaTimeStamp
+    public class Trade : IWithLuaTimeStamp, ISecurity
     {
         [JsonProperty("lua_timestamp")]
-        public long LuaTimeStamp { get; internal set; }
+        public LuaTimeStamp lua_timestamp { get; set; }
 
         /// <summary>
         /// Номер сделки в торговой системе
@@ -53,31 +53,31 @@ namespace QuikSharp.DataStructures.Transaction
         /// Цена
         /// </summary>
         [JsonProperty("price")]
-        public double Price { get; set; }
+        public decimal Price { get; set; }
 
         /// <summary>
         /// Количество бумаг в последней сделке в лотах
         /// </summary>
         [JsonProperty("qty")]
-        public int Quantity { get; set; }
+        public long Quantity { get; set; }
 
         /// <summary>
         /// Объем в денежных средствах
         /// </summary>
         [JsonProperty("value")]
-        public double Value { get; set; }
+        public decimal Value { get; set; }
 
         /// <summary>
         /// Накопленный купонный доход
         /// </summary>
         [JsonProperty("accruedint")]
-        public double AccruedInterest { get; set; }
+        public decimal AccruedInterest { get; set; }
 
         /// <summary>
         /// Доходность
         /// </summary>
         [JsonProperty("yield")]
-        public double Yield { get; set; }
+        public decimal Yield { get; set; }
 
         /// <summary>
         /// Код расчетов
@@ -101,13 +101,13 @@ namespace QuikSharp.DataStructures.Transaction
         /// Цена выкупа
         /// </summary>
         [JsonProperty("price2")]
-        public double Price2 { get; set; }
+        public decimal Price2 { get; set; }
 
         /// <summary>
         /// Ставка РЕПО (%)
         /// </summary>
         [JsonProperty("reporate")]
-        public double RepoRate { get; set; }
+        public decimal RepoRate { get; set; }
 
         /// <summary>
         /// Код клиента
@@ -119,67 +119,67 @@ namespace QuikSharp.DataStructures.Transaction
         /// Доход (%) на дату выкупа
         /// </summary>
         [JsonProperty("accrued2")]
-        public double Accrued2 { get; set; }
+        public decimal Accrued2 { get; set; }
 
         /// <summary>
         /// Сумма РЕПО
         /// </summary>
         [JsonProperty("repovalue")]
-        public double RepoValue { get; set; }
+        public decimal RepoValue { get; set; }
 
         /// <summary>
         /// Объем выкупа РЕПО
         /// </summary>
         [JsonProperty("repo2value")]
-        public double Repo2Value { get; set; }
+        public decimal Repo2Value { get; set; }
 
         /// <summary>
         /// Начальный дисконт (%)
         /// </summary>
         [JsonProperty("start_discount")]
-        public double StartDiscount { get; set; }
+        public decimal StartDiscount { get; set; }
 
         /// <summary>
         /// Нижний дисконт (%)
         /// </summary>
         [JsonProperty("lower_discount")]
-        public double LowerDiscount { get; set; }
+        public decimal LowerDiscount { get; set; }
 
         /// <summary>
         /// Верхний дисконт (%)
         /// </summary>
         [JsonProperty("upper_discount")]
-        public double UpperDiscount { get; set; }
+        public decimal UpperDiscount { get; set; }
 
         /// <summary>
         /// Блокировка обеспечения («Да»/«Нет»)
         /// </summary>
         [JsonProperty("block_securities")]
-        public double BlockSecurities { get; set; }
+        public decimal BlockSecurities { get; set; }
 
         /// <summary>
         /// Клиринговая комиссия (ММВБ)
         /// </summary>
         [JsonProperty("clearing_comission")]
-        public double ClearingComission { get; set; }
+        public decimal ClearingComission { get; set; }
 
         /// <summary>
         /// Комиссия Фондовой биржи (ММВБ)
         /// </summary>
         [JsonProperty("exchange_comission")]
-        public double ExchangeComission { get; set; }
+        public decimal ExchangeComission { get; set; }
 
         /// <summary>
         /// Комиссия Технического центра (ММВБ)
         /// </summary>
         [JsonProperty("tech_center_comission")]
-        public double TechCenterComission { get; set; }
+        public decimal TechCenterComission { get; set; }
 
         /// <summary>
         /// Дата расчетов
         /// </summary>
         [JsonProperty("settle_date")]
-        public double SettleDate { get; set; }
+        public string SettleDate { get; set; }
 
         /// <summary>
         /// Валюта расчетов
@@ -233,7 +233,7 @@ namespace QuikSharp.DataStructures.Transaction
         /// Комиссия брокера. Отображается с точностью до 2 двух знаков. Поле зарезервировано для будущего использования.
         /// </summary>
         [JsonProperty("broker_comission")]
-        public double BrokerComission { get; set; }
+        public decimal BrokerComission { get; set; }
 
         /// <summary>
         /// Номер витринной сделки в Торговой Системе для сделок РЕПО с ЦК и SWAP
@@ -254,28 +254,28 @@ namespace QuikSharp.DataStructures.Transaction
         public long TransID { get; set; }
 
         /// <summary>
-        /// Тип сделки. Возможные значения: 
-        /// «1» – Обычная; 
-        /// «2» – Адресная; 
-        /// «3» – Первичное размещение; 
-        /// «4» – Перевод денег/бумаг; 
-        /// «5» – Адресная сделка первой части РЕПО; 
-        /// «6» – Расчетная по операции своп; 
-        /// «7» – Расчетная по внебиржевой операции своп; 
-        /// «8» – Расчетная сделка бивалютной корзины; 
-        /// «9» – Расчетная внебиржевая сделка бивалютной корзины; 
-        /// «10» – Сделка по операции РЕПО с ЦК; 
-        /// «11» – Первая часть сделки по операции РЕПО с ЦК; 
-        /// «12» – Вторая часть сделки по операции РЕПО с ЦК; 
-        /// «13» – Адресная сделка по операции РЕПО с ЦК; 
-        /// «14» – Первая часть адресной сделки по операции РЕПО с ЦК; 
-        /// «15» – Вторая часть адресной сделки по операции РЕПО с ЦК; 
-        /// «16» – Техническая сделка по возврату активов РЕПО с ЦК; 
-        /// «17» – Сделка по спреду между фьючерсами разных сроков на один актив; 
-        /// «18» – Техническая сделка первой части от спреда между фьючерсами; 
-        /// «19» – Техническая сделка второй части от спреда между фьючерсами; 
-        /// «20» – Адресная сделка первой части РЕПО с корзиной; 
-        /// «21» – Адресная сделка второй части РЕПО с корзиной; 
+        /// Тип сделки. Возможные значения:
+        /// «1» – Обычная;
+        /// «2» – Адресная;
+        /// «3» – Первичное размещение;
+        /// «4» – Перевод денег/бумаг;
+        /// «5» – Адресная сделка первой части РЕПО;
+        /// «6» – Расчетная по операции своп;
+        /// «7» – Расчетная по внебиржевой операции своп;
+        /// «8» – Расчетная сделка бивалютной корзины;
+        /// «9» – Расчетная внебиржевая сделка бивалютной корзины;
+        /// «10» – Сделка по операции РЕПО с ЦК;
+        /// «11» – Первая часть сделки по операции РЕПО с ЦК;
+        /// «12» – Вторая часть сделки по операции РЕПО с ЦК;
+        /// «13» – Адресная сделка по операции РЕПО с ЦК;
+        /// «14» – Первая часть адресной сделки по операции РЕПО с ЦК;
+        /// «15» – Вторая часть адресной сделки по операции РЕПО с ЦК;
+        /// «16» – Техническая сделка по возврату активов РЕПО с ЦК;
+        /// «17» – Сделка по спреду между фьючерсами разных сроков на один актив;
+        /// «18» – Техническая сделка первой части от спреда между фьючерсами;
+        /// «19» – Техническая сделка второй части от спреда между фьючерсами;
+        /// «20» – Адресная сделка первой части РЕПО с корзиной;
+        /// «21» – Адресная сделка второй части РЕПО с корзиной;
         /// «22» – Перенос позиций срочного рынка
         /// </summary>
         [JsonProperty("kind")]
@@ -321,13 +321,13 @@ namespace QuikSharp.DataStructures.Transaction
         /// Номер ревизии заявки, по которой была совершена сделка (параметр используется только для сделок, совершенных по заявкам, к которым применена транзакция замены заявки с сохранением номера)
         /// </summary>
         [JsonProperty("order_revision_number")]
-        public int OrderRevisionNumber { get; set; }
+        public long OrderRevisionNumber { get; set; }
 
         /// <summary>
         /// Количество в заявке на момент совершения сделки, в лотах (параметр используется только для сделок, совершенных по заявкам, к которым применена транзакция замены заявки с сохранением номера)
         /// </summary>
         [JsonProperty("order_qty")]
-        public int OrderQty { get; set; }
+        public long OrderQty { get; set; }
 
         /// <summary>
         /// Цена в заявке на момент совершения сделки (параметр используется только для сделок, совершенных по заявкам, к которым применена транзакция замены заявки с сохранением номера)
@@ -348,11 +348,11 @@ namespace QuikSharp.DataStructures.Transaction
         public string ExecMarket { get; set; }
 
         /// <summary>
-        /// Индикатор ликвидности. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – по заявке мейкера; 
-        /// «2» – по заявке тейкера; 
-        /// «3» – вывод ликвидности; 
+        /// Индикатор ликвидности. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – по заявке мейкера;
+        /// «2» – по заявке тейкера;
+        /// «3» – вывод ликвидности;
         /// «4» – по заявке в период аукциона
         /// </summary>
         [JsonProperty("liquidity_indicator")]
@@ -377,9 +377,9 @@ namespace QuikSharp.DataStructures.Transaction
         public long OnBehalfOfUID { get; set; }
 
         /// <summary>
-        /// Квалификатор клиента, от имени которого совершена сделка. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Natural Person; 
+        /// Квалификатор клиента, от имени которого совершена сделка. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Natural Person;
         /// «3» – Legal Entity
         /// </summary>
         [JsonProperty("client_qualifier")]
@@ -392,9 +392,9 @@ namespace QuikSharp.DataStructures.Transaction
         public long ClientShortCode { get; set; }
 
         /// <summary>
-        /// Квалификатор принявшего решение о совершении сделки. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Natural Person; 
+        /// Квалификатор принявшего решение о совершении сделки. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Natural Person;
         /// «3» – Algorithm
         /// </summary>
         [JsonProperty("investment_decision_maker_qualifier")]
@@ -407,9 +407,9 @@ namespace QuikSharp.DataStructures.Transaction
         public long InvestmentDecisionMakerShortCode { get; set; }
 
         /// <summary>
-        /// Квалификатор трейдера, исполнившего заявку, по которой совершена сделка.Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Natural Person; 
+        /// Квалификатор трейдера, исполнившего заявку, по которой совершена сделка.Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Natural Person;
         /// «3» – Algorithm
         /// </summary>
         [JsonProperty("executing_trader_qualifier")]
@@ -422,69 +422,71 @@ namespace QuikSharp.DataStructures.Transaction
         public long ExecutingTraderShortCode { get; set; }
 
         /// <summary>
-        /// Признак того, что транзакция совершена по правилам пре-трейда. Возможные значения битовых флагов: 
-        /// бит 0 (0x1) – RFPT; 
-        /// бит 1 (0x2) – NLIQ; 
-        /// бит 2 (0x4) – OILQ; 
-        /// бит 3 (0x8) – PRC; 
-        /// бит 4 (0x10)– SIZE; 
+        /// Признак того, что транзакция совершена по правилам пре-трейда. Возможные значения битовых флагов:
+        /// бит 0 (0x1) – RFPT;
+        /// бит 1 (0x2) – NLIQ;
+        /// бит 2 (0x4) – OILQ;
+        /// бит 3 (0x8) – PRC;
+        /// бит 4 (0x10)– SIZE;
         /// бит 5 (0x20) – ILQD
         /// </summary>
         [JsonProperty("waiver_flag")]
         public TradeWaiverFlags WaiverFlag { get; set; }
+
         //public int WaiverFlag { get; set; }
 
         /// <summary>
-        /// Идентификатор базового инструмента на сервере для multileg-инструментов 
+        /// Идентификатор базового инструмента на сервере для multileg-инструментов
         /// </summary>
         [JsonProperty("mleg_base_sid")]
         public long MlegBaseSID { get; set; }
 
         /// <summary>
-        /// Квалификатор операции. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Buy; 
-        /// «2» – Sell; 
-        /// «3» – Sell short; 
-        /// «4» – Sell short exempt; 
+        /// Квалификатор операции. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Buy;
+        /// «2» – Sell;
+        /// «3» – Sell short;
+        /// «4» – Sell short exempt;
         /// «5» – Sell undiclosed
         /// </summary>
         [JsonProperty("side_qualifier")]
         public int SideQualifier { get; set; }
 
         /// <summary>
-        /// OTC post-trade индикатор. Возможные значения битовых флагов: 
-        /// бит 0 (0x1) – Benchmark; 
+        /// OTC post-trade индикатор. Возможные значения битовых флагов:
+        /// бит 0 (0x1) – Benchmark;
         /// бит 1 (0x2) – Agency cross;
-        /// бит 2 (0x4) – Large in scale; 
+        /// бит 2 (0x4) – Large in scale;
         /// бит 3 (0x8) – Illiquid instrument;
-        /// бит 4 (0x10) – Above specified size; 
-        /// бит 5 (0x20) – Cancellations; 
-        /// бит 6 (0x40) – Amendments; 
+        /// бит 4 (0x10) – Above specified size;
+        /// бит 5 (0x20) – Cancellations;
+        /// бит 6 (0x40) – Amendments;
         /// бит 7 (0x80) – Special dividend;
         /// бит 8 (0x100) – Price improvement;
-        /// бит 9 (0x200) – Duplicative; 
-        /// бит 10 (0x400) – Not contributing to the price discovery process; 
-        /// бит 11 (0x800) – Package; 
+        /// бит 9 (0x200) – Duplicative;
+        /// бит 10 (0x400) – Not contributing to the price discovery process;
+        /// бит 11 (0x800) – Package;
         /// бит 12 (0x1000) – Exchange for Physical
         /// </summary>
         [JsonProperty("otc_post_trade_indicator")]
         public TradeOTCPostTradeIndicatorFlags OTCPostTradeIndicator { get; set; }
+
         //public int OTCPostTradeIndicator { get; set; }
 
         /// <summary>
-        /// Роль в исполнении заявки. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Agent; 
-        /// «2» – Principal; 
-        /// «3» – Riskless principal; 
-        /// «4» – CFG give up; 
-        /// «5» – Cross as agent; 
-        /// «6» – Matched principal; 
-        /// «7» – Proprietary; 
-        /// «8» – Individual; 
-        /// «9» – Agent for other member; 
-        /// «10» – Mixed; 
+        /// Роль в исполнении заявки. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Agent;
+        /// «2» – Principal;
+        /// «3» – Riskless principal;
+        /// «4» – CFG give up;
+        /// «5» – Cross as agent;
+        /// «6» – Matched principal;
+        /// «7» – Proprietary;
+        /// «8» – Individual;
+        /// «9» – Agent for other member;
+        /// «10» – Mixed;
         /// «11» – Market maker
         /// </summary>
         [JsonProperty("capacity")]
@@ -494,6 +496,6 @@ namespace QuikSharp.DataStructures.Transaction
         /// Кросс-курс валюты цены сделки к валюте расчетов по сделке
         /// </summary>
         [JsonProperty("cross_rate")]
-        public double CrossRate { get; set; }
+        public decimal CrossRate { get; set; }
     }
 }

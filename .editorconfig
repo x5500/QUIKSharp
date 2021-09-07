@@ -1,0 +1,4 @@
+﻿[*.cs]
+
+# CS1587: За XML-комментарием не следует допустимый элемент языка
+dotnet_diagnostic.CS1587.severity = silent

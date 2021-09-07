@@ -3,13 +3,15 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using QUIKSharp.DataStructures;
 
-namespace QuikSharp.Tests {
+namespace QUIKSharp.Tests
+{
     [TestFixture]
-    public class ServiceFunctionsTest {
-        public ServiceFunctionsTest() { isQuik = _q.Debug.IsQuik().Result; }
-        private Quik _q = new Quik();
-        private bool isQuik;
+    public class ServiceFunctionsTest_Online {
+        public ServiceFunctionsTest_Online() { isQuik = _q.Debug.IsQuik().Result; }
+        private readonly Quik _q = new Quik();
+        private readonly bool isQuik;
 
         [Test]
         public void IsConencted() {
@@ -54,23 +56,23 @@ namespace QuikSharp.Tests {
         [Test]
         public void addLabel()
         {
-            var res = _q.Service.AddLabel(61000, "20170105", "100000", "1", "C:\\ClassesC\\Labels\\buy.bmp", "si", "BOTTOM", 0);
-            Console.WriteLine("AddLabel: "
-                    + String.Join(",", Convert.ToString(res.Result)));
-        }
+            var label = new Label()
+            {
+                XValue = DateTime.Now,
+                YValue = 61000,
+                ImagePath = "C:\\ClassesC\\Labels\\buy.bmp",
+                Text = "si",
+                Alignment = LabelAlignment.BOTTOM,
+            };
 
-        [Test]
-        public void addLabel2() {
-            var pixPath = "C:\\ClassesC\\Labels\\buy.bmp";
-            var res = _q.Service.AddLabel("MX1", 352000, "20210115", "125000", "1", pixPath);
-            Console.WriteLine("AddLabel: "
-                    + String.Join(",", Convert.ToString(res.Result)));
+            var res = _q.Service.AddLabel("si", label);
+            Console.WriteLine("AddLabel: "+ String.Join(",", Convert.ToString(res.Result)));
         }
 
         [Test]
         public void delLabel()
         {
-            double tagId = 13;
+            long tagId = 13;
             var res = _q.Service.DelLabel("si", tagId);
 
             Console.WriteLine("delLabel: "
@@ -80,7 +82,7 @@ namespace QuikSharp.Tests {
         [Test]
         public void delAllLabels()
         {
-            var res = _q.Service.DelAllLabels("si").Result;
+            var res = _q.Service.DelAllLabels("si");
 
             Console.WriteLine("delAllLabels: "
                   + String.Join(",", Convert.ToString(res)));

@@ -3,7 +3,7 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// При удалении клиентского лимита по бумагам функция возвращает таблицу Lua с параметрами
@@ -37,11 +37,45 @@ namespace QuikSharp.DataStructures
 
         /// <summary>
         /// Тип лимита. Возможные значения:
-        /// «0» – обычные лимиты,
-        /// иначе – технологические лимиты
+        /// «0»,«1»,«2»,«365» – обычные лимиты,
+        /// значение меньше «0» – технологические лимиты
         /// </summary>
         [JsonProperty("limit_kind")]
-        public int LimitKind { get; set; }
+        public int LimitKindInt
+        {
+            get { return (int)LimitKind; }
+            set
+            {
+                switch (value)
+                {
+                    case 0:
+                        LimitKind = LimitKind.T0;
+                        break;
+
+                    case 1:
+                        LimitKind = LimitKind.T1;
+                        break;
+
+                    case 2:
+                        LimitKind = LimitKind.T2;
+                        break;
+
+                    case 365:
+                        LimitKind = LimitKind.T365;
+                        break;
+
+                    default:
+                        LimitKind = LimitKind.NotImplemented;
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Тип лимита бумаги (Т0, Т1 или Т2).
+        /// </summary>
+        [JsonIgnore]
+        public LimitKind LimitKind { get; private set; }
 
         // ReSharper restore InconsistentNaming
     }

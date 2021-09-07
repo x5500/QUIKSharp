@@ -3,7 +3,7 @@
 
 using System;
 
-namespace QuikSharp
+namespace QUIKSharp
 {
     /// <summary>
     /// An exception caught on Lua side with a message from Lua

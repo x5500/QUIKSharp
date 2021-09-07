@@ -2,9 +2,11 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json;
+using QUIKSharp.Converters;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
+
     /// <summary>
     /// Таблица с параметрами для функции getParamEx
     /// </summary>
@@ -20,7 +22,7 @@ namespace QuikSharp.DataStructures
         /// «6» - дата
         /// </summary>
         [JsonProperty("param_type")]
-        public string ParamType { get; set; }
+        public ParamTableType ParamType { get; set; }
 
         /// <summary>
         /// Значение параметра. Для param_type = 3 значение параметра равно «0», в остальных случаях – числовое представление.
@@ -43,8 +45,36 @@ namespace QuikSharp.DataStructures
         /// «1» – параметр найден;
         /// </summary>
         [JsonProperty("result")]
-        public string Result { get; set; }
+        public int Result { get; set; }
 
-        public long LuaTimeStamp { get; set; }
+        [JsonProperty("lua_timestamp")]
+        public LuaTimeStamp lua_timestamp { get; set; }
+
+        [JsonIgnore]
+        public object Value
+        {
+            get
+            {
+                if (Result == 0) // «0» – ошибка;
+                    return null;
+
+                switch (ParamType)
+                {
+                    case ParamTableType.DOUBLE:
+                        return Converters.Number<double>.FromString(ParamValue);
+                    case ParamTableType.LONG:
+                        return Converters.Number<long>.FromString(ParamValue);
+                    case ParamTableType.CHAR:
+                        return ParamImage;
+                    case ParamTableType.ENUM:
+                        return Converters.Number<long>.FromString(ParamValue);
+                    case ParamTableType.TIME:
+                        return QuikDateTimeConverter.TimeStrToTimeSpan(ParamValue);
+                    case ParamTableType.DATE:
+                        return QuikDateTimeConverter.QuikDateStrToDateTime(ParamValue);
+                };
+                return null;
+            }
+        }
     }
 }

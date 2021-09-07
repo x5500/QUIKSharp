@@ -2,114 +2,19 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json;
+using QUIKSharp.Converters;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
-namespace QuikSharp.DataStructures.Transaction
+namespace QUIKSharp.DataStructures.Transaction
 {
     /// <summary>
     /// Формат .tri-файла с параметрами транзакций
     /// Адоптированный под QLua
     /// </summary>
-    public class Transaction
+    public class Transaction : IEquatable<Transaction>, ISecurity
     {
         // ReSharper disable InconsistentNaming
-
-        /// <summary>
-        /// Функция вызывается терминалом QUIK при получении ответа на транзакцию пользователя.
-        /// </summary>
-        public event TransReplyHandler OnTransReply;
-
-        internal void OnTransReplyCall(TransactionReply reply)
-        {
-            OnTransReply?.Invoke(reply);
-            // this should happen only once per transaction id
-            Trace.Assert(TransactionReply == null);
-            TransactionReply = reply;
-        }
-
-        /// <summary>
-        /// TransactionReply
-        /// </summary>
-        public TransactionReply TransactionReply { get; set; }
-
-        /// <summary>
-        /// Функция вызывается терминалом QUIK при получении новой заявки или при изменении параметров существующей заявки.
-        /// </summary>
-        public event OrderHandler OnOrder;
-
-        internal void OnOrderCall(Order order)
-        {
-            OnOrder?.Invoke(order);
-            if (Orders == null)
-            {
-                Orders = new List<Order>();
-            }
-
-            Orders.Add(order);
-        }
-
-        /// <summary>
-        /// Функция вызывается терминалом QUIK при получении новой стоп-заявки или при изменении параметров существующей стоп-заявки.
-        /// </summary>
-        public event StopOrderHandler OnStopOrder;
-
-        internal void OnStopOrderCall(StopOrder stopOrder)
-        {
-            OnStopOrder?.Invoke(stopOrder);
-            if (StopOrders == null)
-            {
-                StopOrders = new List<StopOrder>();
-            }
-
-            StopOrders.Add(stopOrder);
-        }
-
-        /// <summary>
-        /// Orders
-        /// </summary>
-        public List<Order> Orders { get; set; }
-
-        /// <summary>
-        /// StopOrders
-        /// </summary>
-        public List<StopOrder> StopOrders { get; set; }
-
-        /// <summary>
-        /// Функция вызывается терминалом QUIK при получении сделки.
-        /// </summary>
-        public event TradeHandler OnTrade;
-
-        internal void OnTradeCall(Trade trade)
-        {
-            OnTrade?.Invoke(trade);
-            if (Trades == null)
-            {
-                Trades = new List<Trade>();
-            }
-
-            Trades.Add(trade);
-        }
-
-        /// <summary>
-        /// Trades
-        /// </summary>
-        public List<Trade> Trades { get; set; }
-
-        // TODO inspect with actual data
-        /// <summary>
-        /// Транзакция исполнена
-        /// </summary>
-        /// <returns></returns>
-        public bool IsComepleted()
-        {
-            if (Orders == null || Orders.Count == 0) return false;
-            var last = Orders[Orders.Count - 1];
-            return !last.Flags.HasFlag(OrderTradeFlags.Active)
-                   &&
-                   !last.Flags.HasFlag(OrderTradeFlags.Canceled);
-        }
 
         /// <summary>
         /// Error message returned by sendTransaction
@@ -117,20 +22,23 @@ namespace QuikSharp.DataStructures.Transaction
         public string ErrorMessage { get; set; }
 
         ///////////////////////////////////////////////////////////////////////////////
-        /// 
+        ///
         ///  Transaction specification properties start here
-        /// 
+        ///
         ///////////////////////////////////////////////////////////////////////////////
-
-        /// <summary>
-        /// Код класса, по которому выполняется транзакция, например TQBR. Обязательный параметр
-        /// </summary>
-        public string CLASSCODE { get; set; }
 
         /// <summary>
         /// Код инструмента, по которому выполняется транзакция, например SBER
         /// </summary>
-        public string SECCODE { get; set; }
+        [JsonProperty("SECCODE")]
+        public string SecCode { get; set; }
+
+        /// <summary>
+        /// Код класса, по которому выполняется транзакция, например TQBR.
+        /// Обязательный параметр
+        /// </summary>
+        [JsonProperty("CLASSCODE")]
+        public string ClassCode { get; set; }
 
         /// <summary>
         /// Вид транзакции, имеющий одно из следующих значений:
@@ -143,20 +51,23 @@ namespace QuikSharp.DataStructures.Transaction
         public string FIRM_ID { get; set; }
 
         /// <summary>
-        /// Номер счета Трейдера. Параметр обязателен при «ACTION» = «KILL_ALL_FUTURES_ORDERS». Параметр чувствителен к верхнему/нижнему регистру символов.
+        /// Номер счета Трейдера.
+        /// Параметр обязателен при «ACTION» = «KILL_ALL_FUTURES_ORDERS».
+        /// Параметр чувствителен к верхнему/нижнему регистру символов.
         /// </summary>
         public string ACCOUNT { get; set; }
 
         /// <summary>
-        /// 20-ти символьное составное поле, может содержать код клиента и текстовый комментарий с тем же разделителем, что и при вводе заявки вручную. Параметр используется только для групповых транзакций. Необязательный параметр
+        /// 20-ти символьное составное поле, может содержать код клиента и текстовый комментарий с тем же разделителем, что и при вводе заявки вручную.
+        /// Параметр используется только для групповых транзакций. Необязательный параметр
         /// </summary>
         public string CLIENT_CODE { get; set; }
 
         /// <summary>
         /// Количество лотов в заявке, обязательный параметр
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<int>))]
-        public int QUANTITY { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long>))]
+        public long QUANTITY { get; set; }
 
         /// <summary>
         /// Цена заявки, за единицу инструмента. Обязательный параметр.
@@ -175,14 +86,10 @@ namespace QuikSharp.DataStructures.Transaction
         public TransactionOperation? OPERATION { get; set; }
 
         /// <summary>
-        /// Уникальный идентификационный номер заявки, значение от 1 до 2 294 967 294
+        /// "Уникальный" идентификационный номер заявки, значение от 1 до 2 294 967 294
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<long?>))]
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
         public long? TRANS_ID { get; set; }
-
-        // ReSharper restore InconsistentNaming
-
-        // ReSharper disable InconsistentNaming
 
         /// <summary>
         /// Тип заявки, необязательный параметр.
@@ -203,31 +110,32 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Объем сделки РЕПО-М в рублях
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(NUMBER_Converter<decimal?>))]
         public decimal? REPOVALUE { get; set; }
 
         /// <summary>
         /// Начальное значение дисконта в заявке на сделку РЕПО-М
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(NUMBER_Converter<decimal?>))]
         public decimal? START_DISCOUNT { get; set; }
 
         /// <summary>
         /// Нижнее предельное значение дисконта в заявке на сделку РЕПО-М
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(NUMBER_Converter<decimal?>))]
         public decimal? LOWER_DISCOUNT { get; set; }
 
         /// <summary>
         /// Верхнее предельное значение дисконта в заявке на сделку РЕПО-М
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(NUMBER_Converter<decimal?>))]
         public decimal? UPPER_DISCOUNT { get; set; }
 
         /// <summary>
-        /// Стоп-цена, за единицу инструмента. Используется только при «ACTION» = «NEW_STOP_ORDER»
+        /// Стоп-цена, за единицу инструмента.
+        /// Используется только при «ACTION» = «NEW_STOP_ORDER»
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(DecimalG29ToStringConverter))]
         public decimal? STOPPRICE { get; set; }
 
         /// <summary>
@@ -236,45 +144,56 @@ namespace QuikSharp.DataStructures.Transaction
         public StopOrderKind? STOP_ORDER_KIND { get; set; }
 
         /// <summary>
-        /// Класс инструмента условия. Используется только при «STOP_ORDER_KIND» = «CONDITION_PRICE_BY_OTHER_SEC».
+        /// Класс инструмента условия.
+        /// Используется только при «STOP_ORDER_KIND» = «CONDITION_PRICE_BY_OTHER_SEC».
         /// </summary>
         public string STOPPRICE_CLASSCODE { get; set; }
 
         /// <summary>
-        /// Код инструмента условия. Используется только при «STOP_ORDER_KIND» = «CONDITION_PRICE_BY_OTHER_SEC»
+        /// Код инструмента условия. И
+        /// спользуется только при «STOP_ORDER_KIND» = «CONDITION_PRICE_BY_OTHER_SEC»
         /// </summary>
         public string STOPPRICE_SECCODE { get; set; }
 
         /// <summary>
-        /// Направление предельного изменения стоп-цены. Используется только при «STOP_ORDER_KIND» = «CONDITION_PRICE_BY_OTHER_SEC». Возможные значения:  «&lt;=» или «&gt;= »
+        /// Направление предельного изменения стоп-цены.
+        /// Используется только при «STOP_ORDER_KIND» = «CONDITION_PRICE_BY_OTHER_SEC». В
+        /// озможные значения:  «&lt;=» или «&gt;= »
         /// </summary>
         public string STOPPRICE_CONDITION { get; set; }
 
         /// <summary>
-        /// Цена связанной лимитированной заявки. Используется только при «STOP_ORDER_KIND» = «WITH_LINKED_LIMIT_ORDER»
+        /// Цена связанной лимитированной заявки.
+        /// Используется только при «STOP_ORDER_KIND» = «WITH_LINKED_LIMIT_ORDER»
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(DecimalG29ToStringConverter))]
         public decimal? LINKED_ORDER_PRICE { get; set; }
 
         /// <summary>
-        /// Срок действия стоп-заявки. Возможные значения: «GTC» – до отмены, «TODAY» - до окончания текущей торговой сессии, Дата в формате «ГГММДД».
+        /// Срок действия стоп-заявки.
+        /// Возможные значения:
+        /// «GTC» – до отмены,
+        /// «TODAY» - до окончания текущей торговой сессии,
+        /// Дата в формате «ГГММДД».
         /// </summary>
         public string EXPIRY_DATE { get; set; }
 
         /// <summary>
         /// Цена условия «стоп-лимит» для заявки типа «Тэйк-профит и стоп-лимит»
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(DecimalG29ToStringConverter))]
         public decimal? STOPPRICE2 { get; set; }
 
         /// <summary>
-        /// Признак исполнения заявки по рыночной цене при наступлении условия «стоп-лимит». Значения «YES» или «NO». Параметр заявок типа «Тэйк-профит и стоп-лимит»
+        /// Признак исполнения заявки по рыночной цене при наступлении условия «стоп-лимит».
+        /// Значения «YES» или «NO». Параметр заявок типа «Тэйк-профит и стоп-лимит»
         /// </summary>
         // TODO (?) Is No default here?
         public YesOrNo? MARKET_STOP_LIMIT { get; set; }
 
         /// <summary>
-        /// Признак исполнения заявки по рыночной цене при наступлении условия «тэйк-профит». Значения «YES» или «NO». Параметр заявок типа «Тэйк-профит и стоп-лимит»
+        /// Признак исполнения заявки по рыночной цене при наступлении условия «тэйк-профит».
+        /// Значения «YES» или «NO». Параметр заявок типа «Тэйк-профит и стоп-лимит»
         /// </summary>
         // TODO (?) Is No default here?
         public YesOrNo? MARKET_TAKE_PROFIT { get; set; }
@@ -288,29 +207,33 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Время начала действия заявки типа «Тэйк-профит и стоп-лимит» в формате «ЧЧММСС»
         /// </summary>
-        [JsonConverter(typeof(HHMMSSDateTimeConverter))]
-        public DateTime? ACTIVE_FROM_TIME { get; set; }
+        [JsonConverter(typeof(HHMMSS_TimeSpanConverter))]
+        public TimeSpan? ACTIVE_FROM_TIME { get; set; }
 
         /// <summary>
         /// Время окончания действия заявки типа «Тэйк-профит и стоп-лимит» в формате «ЧЧММСС»
         /// </summary>
-        [JsonConverter(typeof(HHMMSSDateTimeConverter))]
-        public DateTime? ACTIVE_TO_TIME { get; set; }
+        [JsonConverter(typeof(HHMMSS_TimeSpanConverter))]
+        public TimeSpan? ACTIVE_TO_TIME { get; set; }
 
         /// <summary>
-        /// Код организации – партнера по внебиржевой сделке.Применяется при «ACTION» = «NEW_NEG_DEAL», «ACTION» = «NEW_REPO_NEG_DEAL» или «ACTION» = «NEW_EXT_REPO_NEG_DEAL»
+        /// Код организации – партнера по внебиржевой сделке.
+        /// Применяется при «ACTION» = «NEW_NEG_DEAL», «ACTION» = «NEW_REPO_NEG_DEAL» или «ACTION» = «NEW_EXT_REPO_NEG_DEAL»
         /// </summary>
         public string PARTNER { get; set; }
 
         /// <summary>
-        /// Номер заявки, снимаемой из торговой системы. Применяется при «ACTION» = «KILL_ORDER» или «ACTION» = «KILL_NEG_DEAL» или «ACTION» = «KILL_QUOTE»
+        /// Номер заявки, снимаемой из торговой системы.
+        /// Применяется при «ACTION» = «KILL_ORDER» или «ACTION» = «KILL_NEG_DEAL» или «ACTION» = «KILL_QUOTE»
         /// </summary>
-        public string ORDER_KEY { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
+        public long? ORDER_KEY { get; set; }
 
         /// <summary>
         /// Номер стоп-заявки, снимаемой из торговой системы. Применяется только при «ACTION» = «KILL_STOP_ORDER»
         /// </summary>
-        public string STOP_ORDER_KEY { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
+        public long? STOP_ORDER_KEY { get; set; }
 
         /// <summary>
         /// Код расчетов при исполнении внебиржевых заявок
@@ -320,7 +243,7 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Цена второй части РЕПО
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(NUMBER_Converter<decimal?>))]
         public decimal? PRICE2 { get; set; }
 
         /// <summary>
@@ -342,15 +265,14 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Ставка фиксированного возмещения, выплачиваемого в случае неисполнения второй части РЕПО, в процентах
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(NUMBER_Converter<decimal?>))]
         public decimal? REFUNDRATE { get; set; }
 
         /// <summary>
         /// Текстовый комментарий, указанный в заявке - поручение (brokerref in Trades/Orders).
-        /// Используется при снятии группы заявок
+        /// Используется при снятии группы заявок, однозначно идентифицирует заявки
         /// </summary>
-        [JsonProperty("brokerref")]
-        public string Comment { get; set; }
+        public string COMMENT { get; set; }
 
         /// <summary>
         /// Признак крупной сделки (YES/NO). Параметр внебиржевой сделки
@@ -382,7 +304,7 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Величина отступа от максимума (минимума) цены последней сделки. Используется при «STOP_ORDER_KIND» = «TAKE_PROFIT_STOP_ORDER» или «ACTIVATED_BY_ORDER_TAKE_PROFIT_STOP_ORDER»
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(DecimalG29ToStringConverter))]
         public decimal? OFFSET { get; set; }
 
         /// <summary>
@@ -393,7 +315,7 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Величина защитного спрэда. Используется при «STOP_ORDER_KIND» = «TAKE_PROFIT_STOP_ORDER» или ACTIVATED_BY_ORDER_TAKE_PROFIT_STOP_ORDER»
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(DecimalG29ToStringConverter))]
         public decimal? SPREAD { get; set; }
 
         /// <summary>
@@ -404,7 +326,8 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Регистрационный номер заявки-условия. Используется при «STOP_ORDER_KIND» = «ACTIVATED_BY_ORDER_SIMPLE_STOP_ORDER» или «ACTIVATED_BY_ORDER_TAKE_PROFIT_STOP_ORDER»
         /// </summary>
-        public string BASE_ORDER_KEY { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
+        public long? BASE_ORDER_KEY { get; set; }
 
         /// <summary>
         /// Признак использования в качестве объема заявки «по исполнению» исполненного количества бумаг заявки-условия. Возможные значения: «YES» или «NO». Используется при «STOP_ORDER_KIND» = «ACTIVATED_BY_ORDER_SIMPLE_STOP_ORDER» или «ACTIVATED_BY_ORDER_TAKE_PROFIT_STOP_ORDER»
@@ -425,48 +348,53 @@ namespace QuikSharp.DataStructures.Transaction
         public string BASE_CONTRACT { get; set; }
 
         /// <summary>
-        ///  Режим перестановки заявок на рынке FORTS. Параметр операции «ACTION» = «MOVE_ORDERS» Возможные значения: «0» – оставить количество в заявках без изменения, «1» – изменить количество в заявках на новые, «2» – при несовпадении новых количеств с текущим хотя бы в одной заявке, обе заявки снимаются
+        ///  Режим перестановки заявок на рынке FORTS. Параметр операции «ACTION» = «MOVE_ORDERS»
+        ///  Возможные значения:
+        ///  «0» – оставить количество в заявках без изменения,
+        ///  «1» – изменить количество в заявках на новые,
+        ///  «2» – при несовпадении новых количеств с текущим хотя бы в одной заявке, обе заявки снимаются
         /// </summary>
-        public string MODE { get; set; }
+        public TransactionMode? MODE { get; set; }
 
         /// <summary>
         /// Номер первой заявки
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<long?>))]
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
         public long? FIRST_ORDER_NUMBER { get; set; }
 
         /// <summary>
         /// Количество в первой заявке
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<int?>))]
-        public int? FIRST_ORDER_NEW_QUANTITY { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
+        public long? FIRST_ORDER_NEW_QUANTITY { get; set; }
 
         /// <summary>
         /// Цена в первой заявке
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(DecimalG29ToStringConverter))]
         public decimal? FIRST_ORDER_NEW_PRICE { get; set; }
 
         /// <summary>
         /// Номер второй заявки
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<long?>))]
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
         public long? SECOND_ORDER_NUMBER { get; set; }
 
         /// <summary>
         /// Количество во второй заявке
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<int?>))]
-        public int? SECOND_ORDER_NEW_QUANTITY { get; set; }
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
+        public long? SECOND_ORDER_NEW_QUANTITY { get; set; }
 
         /// <summary>
         /// Цена во второй заявке
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<decimal?>))]
+        [JsonConverter(typeof(DecimalG29ToStringConverter))]
         public decimal? SECOND_ORDER_NEW_PRICE { get; set; }
 
         /// <summary>
-        /// Признак снятия активных заявок по данному инструменту. Используется только при «ACTION» = «NEW_QUOTE». Возможные значения: «YES» или «NO»
+        /// Признак снятия активных заявок по данному инструменту. Используется только при «ACTION» = «NEW_QUOTE».
+        /// Возможные значения: «YES» или «NO»
         /// </summary>
         // TODO (?) Is No default here?
         public YesOrNo? KILL_ACTIVE_ORDERS { get; set; }
@@ -479,7 +407,7 @@ namespace QuikSharp.DataStructures.Transaction
         /// <summary>
         /// Номер подтверждаемой отчетом сделки для исполнения
         /// </summary>
-        [JsonConverter(typeof(ToStringConverter<long?>))]
+        [JsonConverter(typeof(NUMBER_Converter<long?>))]
         public long? NEG_TRADE_NUMBER { get; set; }
 
         /// <summary>
@@ -503,7 +431,8 @@ namespace QuikSharp.DataStructures.Transaction
         public string KGO { get; set; }
 
         /// <summary>
-        /// Параметр, который определяет, будет ли загружаться величина КГО при загрузке лимитов из файла: при USE_KGO=Y – величина КГО загружает. при USE_KGO=N – величина КГО не загружается. При установке лимита на Срочном рынке Московской Биржи с принудительным понижением (см. Создание лимита) требуется указать USE_KGO= Y
+        /// Параметр, который определяет, будет ли загружаться величина КГО при загрузке лимитов из файла: при USE_KGO=Y – величина КГО загружает. при USE_KGO=N – величина КГО не загружается.
+        /// При установке лимита на Срочном рынке Московской Биржи с принудительным понижением (см. Создание лимита) требуется указать USE_KGO= Y
         /// </summary>
         public string USE_KGO { get; set; }
 
@@ -516,18 +445,107 @@ namespace QuikSharp.DataStructures.Transaction
         public YesOrNo? CHECK_LIMITS { get; set; }
 
         /// <summary>
-        /// Ссылка, которая связывает две сделки РЕПО или РПС. Сделка может быть заключена только между контрагентами, указавшими одинаковое значение этого параметра в своих заявках. Параметр представляет собой набор произвольный набор количеством до 10 символов (допускаются цифры и буквы). Необязательный параметр
+        /// Ссылка, которая связывает две сделки РЕПО или РПС. Сделка может быть заключена только между контрагентами, указавшими одинаковое значение этого параметра в своих заявках.
+        /// Параметр представляет собой набор произвольный набор количеством до 10 символов (допускаются цифры и буквы). Необязательный параметр
         /// </summary>
         public string MATCHREF { get; set; }
 
         /// <summary>
-        /// Режим корректировки ограничения по фьючерсным счетам. Возможные значения: «Y» - включен, установкой лимита изменяется действующее значение, «N» - выключен (по умолчанию), установкой лимита задается новое значение
+        /// Режим корректировки ограничения по фьючерсным счетам.
+        /// Возможные значения: «Y» - включен, установкой лимита изменяется действующее значение,
+        /// «N» - выключен (по умолчанию), установкой лимита задается новое значение
         /// </summary>
-        public string CORRECTION { get; set; }
+        public NorY? CORRECTION { get; set; }
 
         // ReSharper restore InconsistentNaming
 
         [JsonIgnore] // do not pass to Quik
         public bool IsManual { get; set; }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as Transaction);
+        }
+
+        public bool Equals(Transaction other)
+        {
+            return other != null &&
+                   ClassCode == other.ClassCode &&
+                   SecCode == other.SecCode &&
+                   ACTION == other.ACTION &&
+                   FIRM_ID == other.FIRM_ID &&
+                   ACCOUNT == other.ACCOUNT &&
+                   CLIENT_CODE == other.CLIENT_CODE &&
+                   QUANTITY == other.QUANTITY &&
+                   PRICE == other.PRICE &&
+                   OPERATION == other.OPERATION &&
+                   TRANS_ID == other.TRANS_ID &&
+                   TYPE == other.TYPE &&
+                   MARKET_MAKER_ORDER == other.MARKET_MAKER_ORDER &&
+                   EXECUTION_CONDITION == other.EXECUTION_CONDITION &&
+                   REPOVALUE == other.REPOVALUE &&
+                   START_DISCOUNT == other.START_DISCOUNT &&
+                   LOWER_DISCOUNT == other.LOWER_DISCOUNT &&
+                   UPPER_DISCOUNT == other.UPPER_DISCOUNT &&
+                   STOPPRICE == other.STOPPRICE &&
+                   STOP_ORDER_KIND == other.STOP_ORDER_KIND &&
+                   STOPPRICE_CLASSCODE == other.STOPPRICE_CLASSCODE &&
+                   STOPPRICE_SECCODE == other.STOPPRICE_SECCODE &&
+                   STOPPRICE_CONDITION == other.STOPPRICE_CONDITION &&
+                   LINKED_ORDER_PRICE == other.LINKED_ORDER_PRICE &&
+                   EXPIRY_DATE == other.EXPIRY_DATE &&
+                   STOPPRICE2 == other.STOPPRICE2 &&
+                   MARKET_STOP_LIMIT == other.MARKET_STOP_LIMIT &&
+                   MARKET_TAKE_PROFIT == other.MARKET_TAKE_PROFIT &&
+                   IS_ACTIVE_IN_TIME == other.IS_ACTIVE_IN_TIME &&
+                   EqualityComparer<TimeSpan?>.Default.Equals(ACTIVE_FROM_TIME, other.ACTIVE_FROM_TIME) &&
+                   EqualityComparer<TimeSpan?>.Default.Equals(ACTIVE_TO_TIME, other.ACTIVE_TO_TIME) &&
+                   PARTNER == other.PARTNER &&
+                   ORDER_KEY == other.ORDER_KEY &&
+                   STOP_ORDER_KEY == other.STOP_ORDER_KEY &&
+                   SETTLE_CODE == other.SETTLE_CODE &&
+                   PRICE2 == other.PRICE2 &&
+                   REPOTERM == other.REPOTERM &&
+                   REPORATE == other.REPORATE &&
+                   BLOCK_SECURITIES == other.BLOCK_SECURITIES &&
+                   REFUNDRATE == other.REFUNDRATE &&
+                   COMMENT == other.COMMENT &&
+                   LARGE_TRADE == other.LARGE_TRADE &&
+                   CURR_CODE == other.CURR_CODE &&
+                   FOR_ACCOUNT == other.FOR_ACCOUNT &&
+                   SETTLE_DATE == other.SETTLE_DATE &&
+                   KILL_IF_LINKED_ORDER_PARTLY_FILLED == other.KILL_IF_LINKED_ORDER_PARTLY_FILLED &&
+                   OFFSET == other.OFFSET &&
+                   OFFSET_UNITS == other.OFFSET_UNITS &&
+                   SPREAD == other.SPREAD &&
+                   SPREAD_UNITS == other.SPREAD_UNITS &&
+                   BASE_ORDER_KEY == other.BASE_ORDER_KEY &&
+                   USE_BASE_ORDER_BALANCE == other.USE_BASE_ORDER_BALANCE &&
+                   ACTIVATE_IF_BASE_ORDER_PARTLY_FILLED == other.ACTIVATE_IF_BASE_ORDER_PARTLY_FILLED &&
+                   BASE_CONTRACT == other.BASE_CONTRACT &&
+                   MODE == other.MODE &&
+                   FIRST_ORDER_NUMBER == other.FIRST_ORDER_NUMBER &&
+                   FIRST_ORDER_NEW_QUANTITY == other.FIRST_ORDER_NEW_QUANTITY &&
+                   FIRST_ORDER_NEW_PRICE == other.FIRST_ORDER_NEW_PRICE &&
+                   SECOND_ORDER_NUMBER == other.SECOND_ORDER_NUMBER &&
+                   SECOND_ORDER_NEW_QUANTITY == other.SECOND_ORDER_NEW_QUANTITY &&
+                   SECOND_ORDER_NEW_PRICE == other.SECOND_ORDER_NEW_PRICE &&
+                   KILL_ACTIVE_ORDERS == other.KILL_ACTIVE_ORDERS &&
+                   NEG_TRADE_OPERATION == other.NEG_TRADE_OPERATION &&
+                   NEG_TRADE_NUMBER == other.NEG_TRADE_NUMBER &&
+                   VOLUMEMN == other.VOLUMEMN &&
+                   VOLUMEPL == other.VOLUMEPL &&
+                   KFL == other.KFL &&
+                   KGO == other.KGO &&
+                   USE_KGO == other.USE_KGO &&
+                   CHECK_LIMITS == other.CHECK_LIMITS &&
+                   MATCHREF == other.MATCHREF &&
+                   CORRECTION == other.CORRECTION;
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
     }
 }

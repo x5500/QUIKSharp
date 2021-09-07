@@ -3,12 +3,12 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// Свеча
     /// </summary>
-    public class Candle
+    public class Candle : ISecurity
     {
         /// <summary>
         /// Минимальная цена сделки
@@ -38,7 +38,7 @@ namespace QuikSharp.DataStructures
         /// Объем последней сделки
         /// </summary>
         [JsonProperty("volume")]
-        public int Volume { get; set; }
+        public long Volume { get; set; }
 
         /// <summary>
         /// Дата и время

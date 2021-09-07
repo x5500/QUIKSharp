@@ -24,7 +24,7 @@ namespace QuikSharpDemo
         /// <summary>
         /// Цена
         /// </summary>
-        public double Price { get; set; }
+        public decimal Price { get; set; }
         #endregion
 
         public Quote()
@@ -34,7 +34,7 @@ namespace QuikSharpDemo
             Qty     = 0;
             Price   = 0;
         }
-        public Quote(string _type, int _index, int _qty, double _price)
+        public Quote(string _type, int _index, int _qty, decimal _price)
         {
             Type    = _type;
             Index   = _index;

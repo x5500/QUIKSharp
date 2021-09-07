@@ -2,13 +2,15 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json;
+using QUIKSharp.Converters;
+using System;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// Результат getSecurityInfo
     /// </summary>
-    public class SecurityInfo
+    public class SecurityInfo : ISecurity
     {
         /// <summary>
         /// Код инструмента
@@ -60,10 +62,10 @@ namespace QuikSharp.DataStructures
 
         /// <summary>
         /// Дата погашения (в QLUA это число, но на самом деле дата записанная как YYYYMMDD),
-        /// поэтому здесь сохраняем просто как строку
         /// </summary>
         [JsonProperty("mat_date")]
-        public string MatDate { get; set; }
+        [JsonConverter(typeof(YYYYMMDD_DateTimeConverter))]
+        public DateTime? MatDate { get; set; }
 
         /// <summary>
         /// Размер лота
@@ -81,6 +83,18 @@ namespace QuikSharp.DataStructures
         /// Минимальный шаг цены
         /// </summary>
         [JsonProperty("min_price_step")]
-        public double MinPriceStep { get; set; }
+        public decimal MinPriceStep { get; set; }
+
+        /// <summary>
+        /// base_active_classcode STRING  Код класса базового актива
+        /// </summary>
+        [JsonProperty("base_active_classcode")]
+        public string Base_ClassCode { get; set; }
+
+        /// <summary>
+        ///  STRING  Базовый актив
+        /// </summary>
+        [JsonProperty("base_active_seccode")]
+        public string Base_SecCode { get; set; }
     }
 }

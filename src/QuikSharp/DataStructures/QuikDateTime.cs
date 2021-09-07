@@ -3,13 +3,13 @@
 
 using System;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// Формат даты и времени, используемый таблицах.
     /// Для корректного отображения даты и времени все параметры должны быть заданы.
     /// </summary>
-    public class QuikDateTime
+    public class QuikDateTime : IComparable<QuikDateTime>, IComparable<DateTime>, IEquatable<QuikDateTime>, IEquatable<DateTime>
     {
         // ReSharper disable InconsistentNaming
         /// <summary>
@@ -58,37 +58,86 @@ namespace QuikSharp.DataStructures
         public int year { get; set; }
 
         // ReSharper restore InconsistentNaming
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="qdt"></param>
-        /// <returns></returns>
-        public static explicit operator DateTime(QuikDateTime qdt)
-        {
-            var dt = new DateTime(qdt.year, qdt.month, qdt.day, qdt.hour, qdt.min, qdt.sec, qdt.ms);
-            return dt; //dt.AddTicks(qdt.mcs * 10);
-        }
-
         /// <summary>
         ///
         /// </summary>
         /// <param name="dt"></param>
         /// <returns></returns>
-        public static explicit operator QuikDateTime(DateTime dt)
+        public QuikDateTime(DateTime dt)
         {
-            return new QuikDateTime
+            year = dt.Year;
+            month = dt.Month;
+            day = dt.Day;
+            hour = dt.Hour;
+            min = dt.Minute;
+            sec = dt.Second;
+            ms = dt.Millisecond;
+            mcs = 0;
+            week_day = (int)dt.DayOfWeek;
+        }
+
+        public static DateTime DateTime(QuikDateTime qdt) => new DateTime(qdt.year, qdt.month, qdt.day, qdt.hour, qdt.min, qdt.sec, qdt.ms);
+        public static implicit operator QuikDateTime(DateTime dt) => new QuikDateTime(dt);
+        public static implicit operator DateTime(QuikDateTime qdt) => new DateTime(qdt.year, qdt.month, qdt.day, qdt.hour, qdt.min, qdt.sec, qdt.ms);
+        public static implicit operator QuikDateTime(double dd) => new QuikDateTime(new DateTime().AddSeconds(dd));
+        public DateTime ToDateTime(IFormatProvider formatProvider) => new DateTime(this.year, this.month, this.day, this.hour, this.min, this.sec, this.ms);
+        public DateTime ToDateTime() => new DateTime(this.year, this.month, this.day, this.hour, this.min, this.sec, this.ms);
+        public int CompareTo(QuikDateTime qdt2)
+        {
+            if (year < qdt2.year) return -1;
+            if (year > qdt2.year) return 1;
+
+            if (month < qdt2.month) return -1;
+            if (month > qdt2.month) return 1;
+
+            if (day < qdt2.day) return -1;
+            if (day > qdt2.day) return 1;
+
+            if (hour < qdt2.hour) return -1;
+            if (hour > qdt2.hour) return 1;
+
+            if (min < qdt2.min) return -1;
+            if (min > qdt2.min) return 1;
+
+            if (sec < qdt2.sec) return -1;
+            if (sec > qdt2.sec) return 1;
+
+            if (ms < qdt2.ms) return -1;
+            if (ms > qdt2.ms) return 1;
+
+            if (mcs < qdt2.mcs) return -1;
+            if (mcs > qdt2.mcs) return 1;
+
+            return 0;
+        }
+
+        public int CompareTo(DateTime other)
+            => DateTime(this).CompareTo(other);
+
+        public bool Equals(QuikDateTime other)
+            => this.CompareTo(other) == 0;
+
+        public bool Equals(DateTime other)
+            => DateTime(this).Equals(other);
+
+        public override string ToString()
+            => DateTime(this).ToString();
+
+        public string ToString(string format, IFormatProvider formatProvider)
+            => DateTime(this).ToString(format, formatProvider);
+
+        public string ToString(IFormatProvider provider)
+            => DateTime(this).ToString(provider);
+
+        static public TypeCode GetTypeCode() => TypeCode.DateTime;
+
+        public object ToType(Type conversionType, IFormatProvider provider)
+        {
+            if (conversionType == typeof(DateTime))
             {
-                year = dt.Year,
-                month = dt.Month,
-                day = dt.Day,
-                hour = dt.Hour,
-                min = dt.Minute,
-                sec = dt.Second,
-                ms = dt.Millisecond,
-                mcs = 0, // ((int)(dt.TimeOfDay.Ticks) - ((dt.Hour * 60 + dt.Minute) * 60 + dt.Second) * 1000 * 10000) / 10,
-                week_day = (int) dt.DayOfWeek
-            };
+                return DateTime(this);
+            }
+            throw new NotImplementedException();
         }
     }
 }

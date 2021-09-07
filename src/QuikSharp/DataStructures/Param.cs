@@ -3,9 +3,9 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
-    public class Param
+    public class Param : ISecurity
     {
         /// <summary>
         /// sec_code  STRING  Код бумаги
@@ -14,7 +14,7 @@ namespace QuikSharp.DataStructures
         public string SecCode { get; set; }
 
         /// <summary>
-        /// class_code  STRING  Код бумаги
+        /// class_code  STRING  Код класса бумаги
         /// </summary>
         [JsonProperty("class_code")]
         public string ClassCode { get; set; }

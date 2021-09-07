@@ -49,6 +49,8 @@ package.cpath = package.cpath .. ";" .. script_path .. libPath .. '?.dll'..";"..
 
 local util = require("qsutils")
 local qf = require("qsfunctions")
+local inspect = require ("inspect")
+
 require("qscallbacks")
 
 log("Detected Quik version: ".. quikVersion .." and using cpath: "..package.cpath  , 0)
@@ -70,20 +72,59 @@ function do_main()
         -- if not connected, connect
         util.connect(response_host, response_port, callback_host, callback_port)
         -- when connected, process queue
+        local t1, t2, t3, t4, t5        
+        local requestMsg = nil
+        local responseMsg = nil
+        local err = nil
+
         -- receive message,
-        local requestMsg = receiveRequest()
+        local requestString = receiveRequest()
+        t1 = timemsec()
+        -- decode message ---
+        if requestString then
+            requestMsg, err = from_json(requestString)
+            if not requestMsg then
+                log("Failed decode from_json(requestString): " .. err, 3)
+                log("   requestString: " .. inspect(requestString), 0)
+            end
+        end
+        t2 = timemsec()
         if requestMsg then
             -- if ok, process message
             -- dispatch_and_process never throws, it returns lua errors wrapped as a message
-            local responseMsg, err = qf.dispatch_and_process(requestMsg)
+            responseMsg, err = qf.dispatch_and_process(requestMsg)
+            t3 = timemsec()
             if responseMsg then
                 -- send message
-                local res = sendResponse(responseMsg)
+                -- if not set explicitly then set CreatedTime "t" property here
+                if not responseMsg.t then responseMsg.t = t3 end
+                -- encode response ---
+                local responseString = to_json(responseMsg)                
+                t4 = timemsec()
+                -- send response ---
+                local res, err = sendResponse(responseString)
+                t5 = timemsec()
+                if not res then
+                    log("Failed to sendResponse: ".. err, 3)
+                end
             else
                 log("Could not dispatch and process request: " .. err, 3)
+                log(" requestMsg: " .. inspect(requestMsg), 0)
             end
         else
             delay(1)
+        end
+        -- log perfomance --
+        if requestMsg then
+            local total = round(t4 - t1)
+            if total > 1 then
+                local decode_time = round(t2 - t1)
+                local dnp_time = round(t3 - t2)
+                local encode_time = round(t4 - t3)
+                local send_time = round(t5 - t4)
+                local txt = "Perfomance for '" .. requestMsg.cmd .. "': " .. total .. "ms. Included: json.decode: " .. decode_time .. "ms., dispatch_and_process: " .. dnp_time .. "ms., json.encode: " .. encode_time .. "ms., send_response: " .. send_time .. "ms."
+                log(txt, 0);
+             end
         end
     end
 end

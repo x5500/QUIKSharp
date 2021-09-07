@@ -3,7 +3,7 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// При изменении текущей позиции по счету функция возвращает таблицу Lua с параметрами
@@ -39,55 +39,55 @@ namespace QuikSharp.DataStructures
         /// Входящий остаток
         /// </summary>
         [JsonProperty("openbal")]
-        public double OpenBal { get; set; }
+        public decimal OpenBal { get; set; }
 
         /// <summary>
         /// Текущий остаток
         /// </summary>
         [JsonProperty("currentpos")]
-        public double CurrentPos { get; set; }
+        public decimal CurrentPos { get; set; }
 
         /// <summary>
         /// Плановая продажа
         /// </summary>
         [JsonProperty("plannedpossell")]
-        public double PlannedPosSell { get; set; }
+        public decimal PlannedPosSell { get; set; }
 
         /// <summary>
         /// Плановая покупка
         /// </summary>
         [JsonProperty("plannedposbuy")]
-        public double PlannedPosBuy { get; set; }
+        public decimal PlannedPosBuy { get; set; }
 
         /// <summary>
         /// Контрольный остаток простого клиринга, равен входящему остатку минус плановая позиция на продажу, включенная в простой клиринг
         /// </summary>
         [JsonProperty("planbal")]
-        public double PlanBal { get; set; }
+        public decimal PlanBal { get; set; }
 
         /// <summary>
         /// Куплено
         /// </summary>
         [JsonProperty("usqtyb")]
-        public double UsQtyB { get; set; }
+        public decimal UsQtyB { get; set; }
 
         /// <summary>
         /// Продано
         /// </summary>
         [JsonProperty("usqtys")]
-        public double UsQtyS { get; set; }
+        public decimal UsQtyS { get; set; }
 
         /// <summary>
         /// Плановый остаток, равен текущему остатку минус плановая позиция на продажу
         /// </summary>
         [JsonProperty("planned")]
-        public double Planned { get; set; }
+        public decimal Planned { get; set; }
 
         /// <summary>
         /// Плановая позиция после проведения расчетов
         /// </summary>
         [JsonProperty("settlebal")]
-        public double SettleBal { get; set; }
+        public decimal SettleBal { get; set; }
 
         /// <summary>
         /// Идентификатор расчетного счета/кода в клиринговой организации

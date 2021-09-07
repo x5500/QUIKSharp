@@ -1,14 +1,12 @@
 ﻿using System;
-using QuikSharp;
-using QuikSharp.DataStructures;
+using QUIKSharp;
+using QUIKSharp.DataStructures;
 
-public class Tool   
+public class Tool   : ISecurity
 {
     readonly Char separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator[0];
     readonly Quik _quik;
     string name;
-    string securityCode;
-    string classCode;
     //string clientCode;
     string accountID;
     string firmID;
@@ -26,11 +24,11 @@ public class Tool
     /// <summary>
     /// Код инструмента (бумаги)
     /// </summary>
-    public string SecurityCode { get { return securityCode; } }
+    public string SecCode { get; private set; }
     /// <summary>
     /// Код класса инструмента (бумаги)
     /// </summary>
-    public string ClassCode { get { return classCode; } }
+    public string ClassCode { get; private set; }
     /// <summary>
     /// Счет клиента
     /// </summary>
@@ -64,7 +62,7 @@ public class Tool
     {
         get
         {
-            lastPrice = Convert.ToDecimal(_quik.Trading.GetParamEx(classCode, securityCode, "LAST").Result.ParamValue.Replace('.', separator));
+            lastPrice = Convert.ToDecimal(_quik.Trading.GetParamEx(this, ParamNames.LAST).Result.ParamValue.Replace('.', separator));
             return lastPrice;
         }
     }
@@ -86,39 +84,39 @@ public class Tool
     {
         try
         {
-            securityCode = secCode;
-            classCode = _classCode;
+            SecCode = secCode;
+            ClassCode = _classCode;
             if (quik != null)
             {
-                if (classCode != null && classCode != "")
+                if (ClassCode != null && ClassCode != "")
                 {
                     try
                     {
-                        name = quik.Class.GetSecurityInfo(classCode, securityCode).Result.ShortName;
-                        accountID = quik.Class.GetTradeAccount(classCode).Result;
-                        firmID = quik.Class.GetClassInfo(classCode).Result.FirmId;
+                        name = quik.Class.GetSecurityInfo(ClassCode, SecCode).Result.ShortName;
+                        accountID = quik.Class.GetTradeAccount(ClassCode).Result;
+                        firmID = quik.Class.GetClassInfo(ClassCode).Result.FirmId;
                         //step = Convert.ToDecimal(quik.Trading.GetParamEx(classCode, securityCode, "SEC_PRICE_STEP").Result.ParamValue.Replace('.', separator));
                         //priceAccuracy = Convert.ToInt32(Convert.ToDouble(quik.Trading.GetParamEx(classCode, securityCode, "SEC_SCALE").Result.ParamValue.Replace('.', separator)));
-                        step = Convert.ToDecimal(quik.Trading.GetParamEx(classCode, securityCode, ParamNames.SEC_PRICE_STEP).Result.ParamValue.Replace('.', separator));
-                        priceAccuracy = Convert.ToInt32(Convert.ToDouble(quik.Trading.GetParamEx(classCode, securityCode, ParamNames.SEC_SCALE).Result.ParamValue.Replace('.', separator)));
+                        step = Convert.ToDecimal(quik.Trading.GetParamEx(this, ParamNames.SEC_PRICE_STEP).Result.ParamValue.Replace('.', separator));
+                        priceAccuracy = Convert.ToInt32(Convert.ToDouble(quik.Trading.GetParamEx(this, ParamNames.SEC_SCALE).Result.ParamValue.Replace('.', separator)));
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine("Tool.GetBaseParam. Ошибка получения наименования для " + securityCode + ": " + e.Message);
+                        Console.WriteLine("Tool.GetBaseParam. Ошибка получения наименования для " + SecCode + ": " + e.Message);
                     }
 
-                    if (classCode == "SPBFUT")
+                    if (ClassCode == "SPBFUT")
                     {
                         Console.WriteLine("Получаем 'guaranteeProviding'.");
                         lot = 1;
                         //guaranteeProviding = Convert.ToDouble(quik.Trading.GetParamEx(classCode, securityCode, "BUYDEPO").Result.ParamValue.Replace('.', separator));
-                        guaranteeProviding = Convert.ToDouble(quik.Trading.GetParamEx(classCode, securityCode, ParamNames.BUYDEPO).Result.ParamValue.Replace('.', separator));
+                        guaranteeProviding = Convert.ToDouble(quik.Trading.GetParamEx(this, ParamNames.BUYDEPO).Result.ParamValue.Replace('.', separator));
                     }
                     else
                     {
                         Console.WriteLine("Получаем 'lot'.");
                         //lot = Convert.ToInt32(Convert.ToDouble(quik.Trading.GetParamEx(classCode, securityCode, "LOTSIZE").Result.ParamValue.Replace('.', separator)));
-                        lot = Convert.ToInt32(Convert.ToDouble(quik.Trading.GetParamEx(classCode, securityCode, ParamNames.LOTSIZE).Result.ParamValue.Replace('.', separator)));
+                        lot = Convert.ToInt32(Convert.ToDouble(quik.Trading.GetParamEx(this, ParamNames.LOTSIZE).Result.ParamValue.Replace('.', separator)));
                         guaranteeProviding = 0;
                     }
                 }

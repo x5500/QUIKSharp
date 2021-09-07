@@ -2,142 +2,168 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json;
+using QUIKSharp.Converters;
+using System;
 
-namespace QuikSharp.DataStructures.Transaction
+namespace QUIKSharp.DataStructures.Transaction
 {
     /// <summary>
     /// Описание параметров Таблицы заявок
     /// </summary>
-    public class Order : IWithLuaTimeStamp
+    public class Order : IWithLuaTimeStamp, ISecurity
     {
         [JsonProperty("lua_timestamp")]
-        public long LuaTimeStamp { get; internal set; }
+        public LuaTimeStamp lua_timestamp { get; set; }
 
         /// <summary>
-        /// Номер заявки в торговой системе
+        /// * Номер заявки в торговой системе
         /// </summary>
         [JsonProperty("order_num")]
         public long OrderNum { get; set; }
 
         /// <summary>
-        /// Поручение/комментарий, обычно: код клиента/номер поручения
+        /// * Поручение/комментарий, обычно: код клиента/номер поручения
         /// </summary>
         [JsonProperty("brokerref")]
         public string Comment { get; set; }
 
         /// <summary>
-        /// Идентификатор трейдера
+        /// * Идентификатор трейдера
         /// </summary>
         [JsonProperty("userid")]
         public string UserId { get; set; }
 
         /// <summary>
-        /// Идентификатор фирмы
+        /// * Идентификатор фирмы
         /// </summary>
         [JsonProperty("firmid")]
         public string FirmId { get; set; }
 
         /// <summary>
-        /// Торговый счет
+        /// * Торговый счет
         /// </summary>
         [JsonProperty("account")]
         public string Account { get; set; }
 
         /// <summary>
-        /// Цена
+        /// * Цена
         /// </summary>
         [JsonProperty("price")]
         public decimal Price { get; set; }
 
         /// <summary>
-        /// Количество в лотах
+        ///* Количество в лотах
         /// </summary>
         [JsonProperty("qty")]
-        public int Quantity { get; set; }
+        public long Quantity { get; set; }
 
         /// <summary>
-        /// Остаток
+        /// * Остаток
         /// </summary>
         [JsonProperty("balance")]
-        public int Balance { get; set; }
+        public long Balance { get; set; }
 
         /// <summary>
-        /// Объем в денежных средствах
+        /// * Объем в денежных средствах
         /// </summary>
         [JsonProperty("value")]
         public decimal Value { get; set; }
 
         /// <summary>
-        /// Накопленный купонный доход
+        /// * Накопленный купонный доход
         /// </summary>
         [JsonProperty("accruedint")]
         public decimal AccruedInterest { get; set; }
 
         /// <summary>
-        /// Доходность
+        /// * Доходность
         /// </summary>
         [JsonProperty("yield")]
         public decimal Yield { get; set; }
 
         /// <summary>
-        /// Идентификатор транзакции
+        /// * Идентификатор транзакции
         /// </summary>
         [JsonProperty("trans_id")]
         public long TransID { get; set; }
 
         /// <summary>
-        /// Код клиента
+        /// * Код клиента
         /// </summary>
         [JsonProperty("client_code")]
         public string ClientCode { get; set; }
 
         /// <summary>
-        /// Цена выкупа
+        /// * Цена выкупа
         /// </summary>
         [JsonProperty("price2")]
         public decimal Price2 { get; set; }
 
         /// <summary>
-        /// Код расчетов
+        /// * Код расчетов
         /// </summary>
         [JsonProperty("settlecode")]
         public string Settlecode { get; set; }
 
         /// <summary>
-        /// Идентификатор пользователя
+        /// * Идентификатор пользователя
         /// </summary>
         [JsonProperty("uid")]
         public long Uid { get; set; }
 
         /// <summary>
-        /// Идентификатор пользователя, снявшего заявку
+        /// * Идентификатор пользователя, снявшего заявку
         /// </summary>
         [JsonProperty("canceled_uid")]
         public long CanceledUID { get; set; }
 
         /// <summary>
-        /// Код биржи в торговой системе
+        /// * Код биржи в торговой системе
         /// </summary>
         [JsonProperty("exchange_code")]
         public string ExchangeCode { get; set; }
 
         /// <summary>
-        /// Время активации
+        /// * Время активации
         /// </summary>
         [JsonProperty("activation_time")]
-        public decimal ActivationTime { get; set; }
+        [JsonConverter(typeof(HHMMSS_TimeSpanConverter))]
+        public TimeSpan ActivationTime { get; set; }
 
         /// <summary>
-        /// Номер заявки в торговой системе
+        /// * Номер заявки в торговой системе
         /// </summary>
         [JsonProperty("linkedorder")]
         public long Linkedorder { get; set; }
 
         /// <summary>
-        /// Дата окончания срока действия заявки
+        /// Составное поле, дата и время окончания срока действия заявки.
+        /// readonly
+        /// </summary>
+        [JsonIgnore]
+        public DateTime ExpiryDateTime { get; private set; }
+
+        /// <summary>
+        /// * Время окончания срока действия заявки в формате "ЧЧММСС DESIGNTIMESP=19552". Для GTT-заявок, используется вместе со сроком истечения заявки (Expiry)
+        /// </summary>
+        [JsonProperty("expiry_time")]
+        [JsonConverter(typeof(HHMMSS_TimeSpanConverter))]
+        public TimeSpan ExpiryTime
+        {
+            get => this.ExpiryDateTime.TimeOfDay;
+            set => this.ExpiryDateTime = ExpiryDateTime.Date + value;
+        }
+
+        /// <summary>
+        /// * Дата окончания срока действия заявки
         /// </summary>
         [JsonProperty("expiry")]
-        public decimal Expiry { get; set; }
+        [JsonConverter(typeof(YYYYMMDD_DateTimeConverter))]
+        public DateTime ExpiryDate
+        {
+            get => this.ExpiryDateTime.Date;
+            set => this.ExpiryDateTime = value.Date + ExpiryDateTime.TimeOfDay;
+        }
 
         /// <summary>
         /// Код бумаги заявки
@@ -152,16 +178,16 @@ namespace QuikSharp.DataStructures.Transaction
         public string ClassCode { get; set; }
 
         /// <summary>
-        /// Дата и время
+        /// * Дата и время
         /// </summary>
         [JsonProperty("datetime")]
         public QuikDateTime Datetime { get; set; }
 
         /// <summary>
-        /// Дата и время снятия заявки
+        /// * TABLE Время снятия стоп-заявки
         /// </summary>
         [JsonProperty("withdraw_datetime")]
-        public QuikDateTime WithdrawDatetime { get; set; }
+        public QuikDateTime WithdrawDateTime { get; set; }
 
         /// <summary>
         /// Идентификатор расчетного счета/кода в клиринговой организации
@@ -173,7 +199,7 @@ namespace QuikSharp.DataStructures.Transaction
         /// Способ указания объема заявки. Возможные значения: «0» – по количеству, «1» – по объему
         /// </summary>
         [JsonProperty("value_entry_type")]
-        public int ValueEntryType { get; set; }
+        public ValueEntryType ValueEntryType { get; set; }
 
         /// <summary>
         /// Срок РЕПО, в календарных днях
@@ -225,23 +251,23 @@ namespace QuikSharp.DataStructures.Transaction
 
         /// <summary>
         /// Тип исполнения заявки. Возможные значения:
-        /// «0» – Значение не указано; 
-        /// «1» – Немедленно или отклонить; 
-        /// «2» – Поставить в очередь; 
-        /// «3» – Снять остаток; 
-        /// «4» – До снятия; 
-        /// «5» – До даты; 
-        /// «6» – В течение сессии; 
-        /// «7» – Открытие; 
-        /// «8» – Закрытие; 
-        /// «9» – Кросс; 
-        /// «11» – До следующей сессии; 
-        /// «13» – До отключения; 
-        /// «15» – До времени; 
-        /// «16» – Следующий аукцион; 
+        /// «0» – Значение не указано;
+        /// «1» – Немедленно или отклонить;
+        /// «2» – Поставить в очередь;
+        /// «3» – Снять остаток;
+        /// «4» – До снятия;
+        /// «5» – До даты;
+        /// «6» – В течение сессии;
+        /// «7» – Открытие;
+        /// «8» – Закрытие;
+        /// «9» – Кросс;
+        /// «11» – До следующей сессии;
+        /// «13» – До отключения;
+        /// «15» – До времени;
+        /// «16» – Следующий аукцион;
         /// </summary>
         [JsonProperty("exec_type")]
-        public int ExecType { get; set; }
+        public OrderExecType ExecType { get; set; }
 
         /// <summary>
         /// Поле для получения параметров по западным площадкам. Если имеет значение «0», значит значение не задано
@@ -257,17 +283,17 @@ namespace QuikSharp.DataStructures.Transaction
 
         /// <summary>
         /// Роль в исполнении заявки. Возможные значения:
-        /// «0» – Не определено; 
-        /// «1» – Agent; 
-        /// «2» – Principal; 
-        /// «3» – Riskless principal; 
-        /// «4» – CFG give up; 
-        /// «5» – Cross as agent; 
-        /// «6» – Matched Principal; 
-        /// «7» – Proprietary; 
-        /// «8» – Individual; 
-        /// «9» – Agent for other member; 
-        /// «10» – Mixed; 
+        /// «0» – Не определено;
+        /// «1» – Agent;
+        /// «2» – Principal;
+        /// «3» – Riskless principal;
+        /// «4» – CFG give up;
+        /// «5» – Cross as agent;
+        /// «6» – Matched Principal;
+        /// «7» – Proprietary;
+        /// «8» – Individual;
+        /// «9» – Agent for other member;
+        /// «10» – Mixed;
         /// «11» – Market maker;
         /// </summary>
         [JsonProperty("capacity")]
@@ -292,12 +318,6 @@ namespace QuikSharp.DataStructures.Transaction
         public decimal AwgPrice { get; set; }
 
         /// <summary>
-        /// Время окончания срока действия заявки в формате "ЧЧММСС DESIGNTIMESP=19552". Для GTT-заявок, используется вместе со сроком истечения заявки (Expiry)
-        /// </summary>
-        [JsonProperty("expiry_time")]
-        public int ExpiryTime { get; set; }
-
-        /// <summary>
         /// Номер ревизии заявки. Используется, если заявка была заменена с сохранением номера
         /// </summary>
         [JsonProperty("revision_number")]
@@ -310,22 +330,22 @@ namespace QuikSharp.DataStructures.Transaction
         public string PriceCurrency { get; set; }
 
         /// <summary>
-        /// Расширенный статус заявки. Возможные значения: 
-        /// «0» (по умолчанию) – не определено; 
-        /// «1» – заявка активна; 
-        /// «2» – заявка частично исполнена; 
-        /// «3» – заявка исполнена; 
-        /// «4» – заявка отменена; 
-        /// «5» – заявка заменена; 
-        /// «6» – заявка в состоянии отмены; 
-        /// «7» – заявка отвергнута; 
-        /// «8» – приостановлено исполнение заявки; 
-        /// «9» – заявка в состоянии регистрации; 
-        /// «10» – заявка снята по времени действия; 
+        /// Расширенный статус заявки. Возможные значения:
+        /// «0» (по умолчанию) – не определено;
+        /// «1» – заявка активна;
+        /// «2» – заявка частично исполнена;
+        /// «3» – заявка исполнена;
+        /// «4» – заявка отменена;
+        /// «5» – заявка заменена;
+        /// «6» – заявка в состоянии отмены;
+        /// «7» – заявка отвергнута;
+        /// «8» – приостановлено исполнение заявки;
+        /// «9» – заявка в состоянии регистрации;
+        /// «10» – заявка снята по времени действия;
         /// «11» – заявка в состоянии замены
         /// </summary>
         [JsonProperty("ext_order_status")]
-        public int ExtOrderStatus { get; set; }
+        public ExtOrderStatus ExtOrderStatus { get; set; }
 
         /// <summary>
         /// UID пользователя-менеджера, подтвердившего заявку при работе в режиме с подтверждениями
@@ -358,9 +378,9 @@ namespace QuikSharp.DataStructures.Transaction
         public long OnBehalfOfUID { get; set; }
 
         /// <summary>
-        /// Квалификатор клиента, от имени которого выставлена заявка. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Natural Person; 
+        /// Квалификатор клиента, от имени которого выставлена заявка. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Natural Person;
         /// «3» – Legal Entity
         /// </summary>
         [JsonProperty("client_qualifier")]
@@ -370,76 +390,61 @@ namespace QuikSharp.DataStructures.Transaction
         /// Краткий идентификатор клиента, от имени которого выставлена заявка
         /// </summary>
         [JsonProperty("client_short_code")]
-        public long ClientShortCode { get; set; }
+        public int ClientShortCode { get; set; }
 
         /// <summary>
-        /// Квалификатор принявшего решение о выставлении заявки. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Natural Person; 
+        /// Квалификатор принявшего решение о выставлении заявки. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Natural Person;
         /// «2» – Algorithm
         /// </summary>
         [JsonProperty("investment_decision_maker_qualifier")]
-        public long InvestmentDecisionMakerQualifier { get; set; }
+        public int InvestmentDecisionMakerQualifier { get; set; }
 
         /// <summary>
         /// Краткий идентификатор принявшего решение о выставлении заявки
         /// </summary>
         [JsonProperty("investment_decision_maker_short_code")]
-        public long InvestmentDecisionMakerShortCode { get; set; }
+        public int InvestmentDecisionMakerShortCode { get; set; }
 
         /// <summary>
-        /// Квалификатор трейдера, исполнившего заявку. Возможные значения: 
-        /// «0» – не определено; 
-        /// «1» – Natural Person; 
+        /// Квалификатор трейдера, исполнившего заявку. Возможные значения:
+        /// «0» – не определено;
+        /// «1» – Natural Person;
         /// «2» – Algorithm
         /// </summary>
         [JsonProperty("executing_trader_qualifier")]
-        public long ExecutingTraderQualifier { get; set; }
+        public int ExecutingTraderQualifier { get; set; }
 
         /// <summary>
         /// Краткий идентификатор трейдера, исполнившего заявку
         /// </summary>
         [JsonProperty("executing_trader_short_code")]
-        public long ExecutingTraderShortCode { get; set; }
-
-        /// <summary>
-        /// Тип операции - Buy или Sell
-        /// </summary>
-        [JsonIgnore]
-        public Operation Operation { get; set; }
-
-        /// <summary>
-        /// Состояние заявки.
-        /// </summary>
-        [JsonIgnore]
-        public State State { get; private set; }
-
-        private OrderTradeFlags _flags;
+        public int ExecutingTraderShortCode { get; set; }
 
         /// <summary>
         /// Набор битовых флагов
         /// http://help.qlua.org/ch9_1.htm
         /// </summary>
         [JsonProperty("flags")]
-        public OrderTradeFlags Flags
+        public OrderTradeFlags Flags { get; set; }
+
+        /// <summary>
+        /// Тип операции - Buy или Sell
+        /// </summary>
+        [JsonIgnore]
+        public Operation Operation
         {
-            get { return _flags; }
-            set
-            {
-                _flags = value;
-                ParseFlags();
-            }
+            get => this.Flags.HasFlag(OrderTradeFlags.IsSell) ? Operation.Sell : Operation.Buy;
+            set => this.Flags = (value == Operation.Sell) ? (Flags | OrderTradeFlags.IsSell) : (Flags & ~OrderTradeFlags.IsSell);
         }
 
-        private void ParseFlags()
-        {
-            Operation = Flags.HasFlag(OrderTradeFlags.IsSell) ? Operation.Sell : Operation.Buy;
-
-            State = Flags.HasFlag(OrderTradeFlags.Active)
-                ? State.Active
-                : (Flags.HasFlag(OrderTradeFlags.Canceled)
-                    ? State.Canceled
-                    : State.Completed);
-        }
+        /// <summary>
+        /// Состояние заявки.
+        /// </summary>
+        [JsonIgnore]
+        public State State => this.Flags.HasFlag(OrderTradeFlags.Active) ? State.Active
+            : Flags.HasFlag(OrderTradeFlags.Canceled) ? State.Canceled
+            : Flags.HasFlag(OrderTradeFlags.Rejected) ? State.Rejected : State.Completed;
     }
 }

@@ -1,4 +1,4 @@
-﻿using QuikSharp;
+﻿using QUIKSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;

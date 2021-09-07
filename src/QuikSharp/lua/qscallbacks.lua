@@ -49,6 +49,7 @@ function OnAllTrade(alltrade)
     end
 end
 
+--#fsr (log changed)
 function OnClose()
     if is_connected then
         local msg = {}
@@ -57,9 +58,11 @@ function OnClose()
         msg.data = ""
         sendCallback(msg)
     end
+	log("QUIK# closed")
     CleanUp()
 end
 
+--#fsr (log changed)
 function OnInit(script_path)
     if is_connected then
         local msg = {}
@@ -99,6 +102,7 @@ function OnQuote(class_code, sec_code)
     end
 end
 
+--#fsr (log changed)
 function OnStop(s)
     is_started = false
 
@@ -109,7 +113,7 @@ function OnStop(s)
         msg.data = s
         sendCallback(msg)
     end
-    log("QUIK# stopped. You could keep script running when closing QUIK and the script will start automatically the next time you start QUIK", 1)
+	log("QUIK# stopped")
     CleanUp()
     --	send disconnect
     return 1000

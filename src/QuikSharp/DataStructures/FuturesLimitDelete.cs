@@ -3,7 +3,7 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// При удалении лимита по срочному рынку функция возвращает таблицу Lua с параметрами

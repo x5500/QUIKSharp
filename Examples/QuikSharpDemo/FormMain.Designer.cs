@@ -41,6 +41,7 @@
             this.label3 = new System.Windows.Forms.Label();
             this.textBoxAccountID = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
+            this.textBoxClientCode = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
             this.textBoxFirmID = new System.Windows.Forms.TextBox();
             this.buttonRun = new System.Windows.Forms.Button();
@@ -70,7 +71,6 @@
             this.textBoxHost = new System.Windows.Forms.TextBox();
             this.label17 = new System.Windows.Forms.Label();
             this.textBox_RenewTime = new System.Windows.Forms.TextBox();
-            this.comboBox_ClientCode = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
             // 
             // buttonStart
@@ -151,6 +151,7 @@
             // 
             // textBoxClassCode
             // 
+            this.textBoxClassCode.Enabled = false;
             this.textBoxClassCode.Location = new System.Drawing.Point(93, 98);
             this.textBoxClassCode.Name = "textBoxClassCode";
             this.textBoxClassCode.Size = new System.Drawing.Size(140, 20);
@@ -181,6 +182,14 @@
             this.label4.Size = new System.Drawing.Size(58, 13);
             this.label4.TabIndex = 5;
             this.label4.Text = "ClientCode";
+            // 
+            // textBoxClientCode
+            // 
+            this.textBoxClientCode.Enabled = false;
+            this.textBoxClientCode.Location = new System.Drawing.Point(93, 124);
+            this.textBoxClientCode.Name = "textBoxClientCode";
+            this.textBoxClientCode.Size = new System.Drawing.Size(140, 20);
+            this.textBoxClientCode.TabIndex = 6;
             // 
             // label5
             // 
@@ -433,24 +442,15 @@
             this.textBox_RenewTime.TabIndex = 6;
             this.textBox_RenewTime.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // comboBox_ClientCode
-            // 
-            this.comboBox_ClientCode.FormattingEnabled = true;
-            this.comboBox_ClientCode.Location = new System.Drawing.Point(93, 124);
-            this.comboBox_ClientCode.Name = "comboBox_ClientCode";
-            this.comboBox_ClientCode.Size = new System.Drawing.Size(140, 21);
-            this.comboBox_ClientCode.TabIndex = 8;
-            this.comboBox_ClientCode.SelectedIndexChanged += new System.EventHandler(this.ComboBox_ClientCode_SelectedIndexChanged);
-            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1057, 547);
-            this.Controls.Add(this.comboBox_ClientCode);
             this.Controls.Add(this.checkBoxRemoteHost);
             this.Controls.Add(this.textBoxFirmID);
             this.Controls.Add(this.label5);
+            this.Controls.Add(this.textBoxClientCode);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.textBoxAccountID);
             this.Controls.Add(this.label3);
@@ -523,6 +523,7 @@
         private System.Windows.Forms.TextBox textBoxBestBid;
         private System.Windows.Forms.TextBox textBoxBestOffer;
         private System.Windows.Forms.TextBox textBoxClassCode;
+        private System.Windows.Forms.TextBox textBoxClientCode;
         private System.Windows.Forms.TextBox textBoxDescription;
         private System.Windows.Forms.TextBox textBoxFirmID;
         private System.Windows.Forms.TextBox textBoxGuaranteeProviding;
@@ -539,8 +540,6 @@
         private System.Windows.Forms.Timer timerRenewForm;
 
         #endregion
-
-        private System.Windows.Forms.ComboBox comboBox_ClientCode;
     }
 }
 

@@ -1,4 +1,4 @@
-﻿using QuikSharp.DataStructures;
+﻿using QUIKSharp.DataStructures;
 
 public class Settings
 {

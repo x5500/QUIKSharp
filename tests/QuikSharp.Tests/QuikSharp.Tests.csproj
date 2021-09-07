@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\..\packages\NUnit.3.12.0\build\NUnit.props" Condition="Exists('..\..\packages\NUnit.3.12.0\build\NUnit.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -10,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>QuikSharp.Tests</RootNamespace>
     <AssemblyName>QuikSharp.Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
@@ -38,13 +37,28 @@
   <PropertyGroup>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Newtonsoft.Json.12.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="nunit.framework, Version=3.12.0.0, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\NUnit.3.12.0\lib\net45\nunit.framework.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -54,27 +68,83 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CandleFunctionsTest.cs" />
+    <Compile Include="CandleFunctionsTest_Online.cs" />
+    <Compile Include="Helpers\TestQ.cs" />
     <Compile Include="OrderBookFunctionsTest.cs" />
-    <Compile Include="ClassFunctionsTest.cs" />
-    <Compile Include="OrderFunctionsTest.cs" />
-    <Compile Include="Ping.cs" />
+    <Compile Include="ClassFunctionsTest_Online.cs" />
+    <Compile Include="OrderFunctionsTest_Online.cs" />
+    <Compile Include="Ping_Online.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="QOrders\QLimitOrderTests_Transac.cs" />
+    <Compile Include="QOrders\QStopOrderTests_Transac.cs" />
+    <Compile Include="QOrders\QStopOrderWLinked_Tests_Offline.cs" />
+    <Compile Include="QOrders\QTakeOrderTests_Transac.cs" />
+    <Compile Include="QOrders\QTPSLOrderTests_Transac.cs" />
+    <Compile Include="QOrders\Testers\BasicLimitOrderTest.cs" />
+    <Compile Include="QOrders\Testers\TestStopOrderwLinked.cs" />
+    <Compile Include="QOrders\Testers\TestLimitOrder.cs" />
+    <Compile Include="QOrders\Testers\TestOrderBase.cs" />
+    <Compile Include="QOrders\QLimitOrderTests_Onffline.cs" />
+    <Compile Include="QOrders\QOrdersManagerTests_Online.cs" />
+    <Compile Include="QOrders\QStopOrderTests_Onffline.cs" />
+    <Compile Include="QOrders\Testers\TestStopOrder.cs" />
+    <Compile Include="Helpers\Sec.cs" />
     <Compile Include="ServiceFuncitonsTest.cs" />
     <Compile Include="TradingFunctionsTest.cs" />
+    <Compile Include="TradingFunctionsTest_Online.cs" />
     <Compile Include="TransactionSpecTest.cs" />
+    <Compile Include="TransactionSpecTest_Online.cs" />
+    <Compile Include="Transactions\LuaBulkIdProviderTests.cs" />
+    <Compile Include="Transactions\LuaIdProviderTests_Online.cs" />
+    <Compile Include="Transactions\QuikDateTimeConverterTests.cs" />
+    <Compile Include="Transactions\TransactionsFunctionsTests_Online.cs" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\QuikSharp\QuikSharp.csproj">
       <Project>{8c1515d0-c068-47fb-b64d-8f47834c6933}</Project>
       <Name>QuikSharp</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging">
+      <Version>5.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Primitives">
+      <Version>5.0.1</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETCore.Platforms">
+      <Version>5.0.2</Version>
+    </PackageReference>
+    <PackageReference Include="NETStandard.Library">
+      <Version>2.0.3</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>13.0.1</Version>
+    </PackageReference>
+    <PackageReference Include="NLog">
+      <Version>4.7.11</Version>
+    </PackageReference>
+    <PackageReference Include="NLog.Extensions.Logging">
+      <Version>1.7.4</Version>
+    </PackageReference>
+    <PackageReference Include="NUnit">
+      <Version>3.13.2</Version>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <Version>4.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="System.Memory">
+      <Version>4.5.4</Version>
+    </PackageReference>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
+      <Version>5.0.0</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="IOService\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

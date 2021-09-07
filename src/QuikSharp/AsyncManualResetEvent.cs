@@ -4,17 +4,13 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace QuikSharp
+namespace QUIKSharp
 {
-    // http://blogs.msdn.com/b/pfxteam/archive/2012/02/11/10266920.aspx
-    internal class AsyncManualResetEvent
+    // https://stackoverflow.com/questions/18756354/wrapping-manualresetevent-as-awaitable-task
+    public class AsyncManualResetEvent
     {
         private volatile TaskCompletionSource<bool> m_tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public Task WaitAsync()
-        {
-            return m_tcs.Task;
-        }
+        public Task WaitAsync { get => m_tcs.Task; }
 
         public void Set()
         {
@@ -26,10 +22,17 @@ namespace QuikSharp
             while (true)
             {
                 var tcs = m_tcs;
-                if (!tcs.Task.IsCompleted ||
-                    Interlocked.CompareExchange(ref m_tcs, new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously), tcs) == tcs)
+                if (!tcs.Task.IsCompleted || Interlocked.CompareExchange(ref m_tcs, new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously), tcs) == tcs)
                     return;
             }
         }
+        public void Cancel()
+        {
+            m_tcs.TrySetCanceled();
+        }
+
+        public bool isSet { get => (m_tcs.Task.Status == TaskStatus.RanToCompletion); }
+        public bool isCancelled { get => (m_tcs.Task.Status == TaskStatus.Canceled); }
+        public bool isWaiting { get => (m_tcs.Task.Status == TaskStatus.WaitingForActivation); }
     }
 }

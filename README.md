@@ -1,4 +1,11 @@
 ﻿[![Gitter](https://badges.gitter.im/QUIKSharp/community.svg)](https://gitter.im/QUIKSharp/community)
+==========
+CHANGES (PERFOMANCE+++):
+ + Changed API.
+ + Rewitten some services
+ + Rewitten Transac & TransID workflow
+ + JSON encoder/decoder powered with BASE64 serialize for int64 & DOUBLE values.
+ + LUA JSON encoder/decoder speedup with BASE64 serialize for int64 & DOUBLE values.
 
 QUIK#
 ==========

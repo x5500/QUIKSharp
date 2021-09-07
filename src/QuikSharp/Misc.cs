@@ -3,7 +3,7 @@
 
 using System.Net.Sockets;
 
-namespace QuikSharp
+namespace QUIKSharp
 {
     public static class NetworkUtils
     {

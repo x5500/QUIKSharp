@@ -1,28 +1,29 @@
 ﻿// Copyright (c) 2014-2020 QUIKSharp Authors https://github.com/finsight/QUIKSharp/blob/master/AUTHORS.md. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
-using QuikSharp.DataStructures;
+using NLog;
+using QUIKSharp.Converters;
+using QUIKSharp.DataStructures;
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace QuikSharp
+namespace QUIKSharp
 {
 #if NETSTANDARD
-    internal class ConsoleTraceListener : TraceListener
-    {
-        public override void Write(string message)
+    /*    internal class ConsoleTraceListener : TraceListener
         {
-            Console.Write(message);
-        }
+            public override void Write(string message)
+            {
+                Console.Write(message);
+            }
 
-        public override void WriteLine(string message)
-        {
-            Console.WriteLine(message);
-        }
-    }
+            public override void WriteLine(string message)
+            {
+                Console.WriteLine(message);
+            }
+        }*/
 #endif
     // Шаманство с обработкой закрытия может быть нужно, если кровь из носа следует
     // почистить за собой перед выходом, например снять все заявки или сохранить
@@ -32,6 +33,8 @@ namespace QuikSharp
 
     internal static class Program
     {
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
         private static Quik _quik;
 
         private static bool _exitSystem;
@@ -64,7 +67,7 @@ namespace QuikSharp
 
         private static bool Handler(CtrlType sig)
         {
-            Trace.WriteLine("Exiting system due to manual close, external CTRL-C, or process kill, or shutdown");
+            logger.Trace("Exiting system due to manual close, external CTRL-C, or process kill, or shutdown");
             //do your cleanup here
             Cleanup();
             //allow main to run off
@@ -78,6 +81,18 @@ namespace QuikSharp
 
         private static void Main()
         {
+            LogManager.Configuration = new NLog.Config.LoggingConfiguration();
+            // Targets where to log to: Console
+            var logconsole = new NLog.Targets.ConsoleTarget("logconsole")
+            {
+                DetectConsoleAvailable = true
+            };
+            LogManager.Configuration.AddTarget(logconsole);
+            LogManager.Configuration.AddRule(LogLevel.Debug, LogLevel.Fatal, logconsole);
+            // Apply config
+            LogManager.ReconfigExistingLoggers();
+            logger.Info("Program started");
+
             // Do not spam console when used as a dependency and use Trace
             //Trace.Listeners.Clear();
             //Trace.Listeners.Add(new ConsoleTraceListener());
@@ -98,17 +113,13 @@ namespace QuikSharp
 
             // ************************************************************************************
 
-            string securityCode = "RIZ5";
+            string securityCode = "VBM1";
 
             // Do not spam console when used as a dependency and use Trace
-            Trace.Listeners.Clear();
-            Trace.Listeners.Add(new ConsoleTraceListener());
 
             // Some biolerplate to react to close window event, CTRL-C, kill, etc
             _handler += Handler;
             SetConsoleCtrlHandler(_handler, true);
-
-            ServiceManager.StartServices();
 
             _quik = new Quik();
             //Console.WriteLine("Running in Quik? : " + _quik.Debug.IsQuik().Result);
@@ -124,12 +135,12 @@ namespace QuikSharp
 
             #region Example
 
-            double bestBidPrice = 0;
-            double bestOfferPrice = 0;
+            decimal bestBidPrice = 0;
+            decimal bestOfferPrice = 0;
 
             _quik.Events.OnQuote += (orderBook) =>
             {
-                if (orderBook.sec_code == securityCode)
+                if (orderBook.SecCode == securityCode)
                 {
                     bestBidPrice = orderBook.bid.OrderByDescending(o => o.price).First().price;
                     bestOfferPrice = orderBook.offer.OrderByDescending(o => o.price).Last().price;
@@ -137,8 +148,8 @@ namespace QuikSharp
             };
 
             var n = 0;
-            var sw = new Stopwatch();
-            sw.Start();
+            //var sw = new Stopwatch();
+            //sw.Start();
             while (n <= 200)
             {
                 Console.Write("Best bid: " + bestBidPrice);
@@ -152,9 +163,9 @@ namespace QuikSharp
                 n++;
             }
 
-            sw.Stop();
-            Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds);
-            Console.WriteLine("Per call: " + (sw.ElapsedMilliseconds / n));
+            //sw.Stop();
+            //Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds);
+            //Console.WriteLine("Per call: " + (sw.ElapsedMilliseconds / n));
             Console.WriteLine("While Exit");
 
             #endregion Example
@@ -199,7 +210,6 @@ namespace QuikSharp
         private static void Cleanup()
         {
             Console.WriteLine("Bye!");
-            ServiceManager.StopServices();
         }
     }
 }

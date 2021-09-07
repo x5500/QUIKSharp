@@ -3,7 +3,7 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// При изменении денежной позиции по счету функция возвращает таблицу Lua с параметрами
@@ -39,67 +39,67 @@ namespace QuikSharp.DataStructures
         /// Входящий остаток
         /// </summary>
         [JsonProperty("openbal")]
-        public double OpenBal { get; set; }
+        public decimal OpenBal { get; set; }
 
         /// <summary>
         /// Текущий остаток
         /// </summary>
         [JsonProperty("currentpos")]
-        public double CurrentPos { get; set; }
+        public decimal CurrentPos { get; set; }
 
         /// <summary>
         /// Плановый остаток
         /// </summary>
         [JsonProperty("plannedpos")]
-        public double PlannedPos { get; set; }
+        public decimal PlannedPos { get; set; }
 
         /// <summary>
         /// Внешнее ограничение по деньгам
         /// </summary>
         [JsonProperty("limit1")]
-        public double Limit1 { get; set; }
+        public decimal Limit1 { get; set; }
 
         /// <summary>
         /// Внутреннее (собственное) ограничение по деньгам
         /// </summary>
         [JsonProperty("limit2")]
-        public double Limit2 { get; set; }
+        public decimal Limit2 { get; set; }
 
         /// <summary>
         /// В заявках на продажу // Странно. Не ошибка ли????
         /// </summary>
         [JsonProperty("orderbuy")]
-        public double OrderBuy { get; set; }
+        public decimal OrderBuy { get; set; }
 
         /// <summary>
         /// В заявках на покупку // Странно. Не ошибка ли????
         /// </summary>
         [JsonProperty("ordersell")]
-        public double OrderSell { get; set; }
+        public decimal OrderSell { get; set; }
 
         /// <summary>
         /// Нетто-позиция
         /// </summary>
         [JsonProperty("netto")]
-        public double Netto { get; set; }
+        public decimal Netto { get; set; }
 
         /// <summary>
         /// Плановая позиция
         /// </summary>
         [JsonProperty("plannedbal")]
-        public double PlannedBal { get; set; }
+        public decimal PlannedBal { get; set; }
 
         /// <summary>
         /// Дебит
         /// </summary>
         [JsonProperty("debit")]
-        public double Debit { get; set; }
+        public decimal Debit { get; set; }
 
         /// <summary>
         /// Кредит
         /// </summary>
         [JsonProperty("credit")]
-        public double Credit { get; set; }
+        public decimal Credit { get; set; }
 
         /// <summary>
         /// Идентификатор счета
@@ -111,13 +111,13 @@ namespace QuikSharp.DataStructures
         /// Маржинальное требование на начало торгов
         /// </summary>
         [JsonProperty("margincall")]
-        public double MarginCall { get; set; }
+        public decimal MarginCall { get; set; }
 
         /// <summary>
         /// Плановая позиция после проведения расчетов
         /// </summary>
         [JsonProperty("settlebal")]
-        public double SettleBal { get; set; }
+        public decimal SettleBal { get; set; }
 
         // ReSharper restore InconsistentNaming
     }

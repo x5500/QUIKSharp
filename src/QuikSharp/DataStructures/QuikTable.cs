@@ -3,7 +3,7 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures
+namespace QUIKSharp.DataStructures
 {
     /// <summary>
     /// Таблицы, используемые в функциях «getItem», «getOrderByNumber», «getNumberOf» и «SearchItems»

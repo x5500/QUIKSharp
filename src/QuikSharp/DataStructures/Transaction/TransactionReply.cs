@@ -3,18 +3,18 @@
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures.Transaction
+namespace QUIKSharp.DataStructures.Transaction
 {
     /// <summary>
     /// Результат OnTransReply
     /// </summary>
-    public class TransactionReply : IWithLuaTimeStamp
+    public class TransactionReply : IWithLuaTimeStamp, ISecurity
     {
         /// <summary>
         /// Пользовательский идентификатор транзакции
         /// </summary>
         [JsonProperty("trans_id")]
-        public int TransID { get; set; }
+        public long TransID { get; set; }
 
         /// <summary>
         /// Статус
@@ -29,9 +29,12 @@ namespace QuikSharp.DataStructures.Transaction
         /// «11» - транзакция не прошла проверку правильности электронной подписи. К примеру, если ключи, зарегистрированные на сервере, не соответствуют подписи отправленной транзакции.
         /// «12» - не удалось дождаться ответа на транзакцию, т.к. истек таймаут ожидания. Может возникнуть при подаче транзакций из QPILE.
         /// «13» - транзакция отвергнута, т.к. ее выполнение могло привести к кросс-сделке (т.е. сделке с тем же самым клиентским счетом).
+        /// «14» – транзакция не прошла контроль дополнительных ограничений
+        /// «15» – транзакция принята после нарушения дополнительных ограничений
+        /// «16» – транзакция отменена пользователем в ходе проверки дополнительных ограничений
         /// </summary>
         [JsonProperty("status")]
-        public int Status { get; set; }
+        public TransactionReplyStatus Status { get; set; }
 
         /// <summary>
         /// Сообщение
@@ -40,10 +43,10 @@ namespace QuikSharp.DataStructures.Transaction
         public string ResultMsg { get; set; }
 
         /// <summary>
-        /// Время (в QLUA представлено как число)
+        ///Дата и время (в QLUA представлено как число)
         /// </summary>
-        [JsonProperty("time")]
-        public string Time { get; set; }
+        [JsonProperty("date_time")]
+        public QuikDateTime Time { get; set; }
 
         /// <summary>
         /// Идентификатор пользователя у брокера. Для каждого брокера он свой и меняться не должен.
@@ -73,19 +76,20 @@ namespace QuikSharp.DataStructures.Transaction
         /// Цена
         /// </summary>
         [JsonProperty("price")]
-        public double? Price { get; set; }
+        public decimal? Price { get; set; }
 
         /// <summary>
         /// Количество
         /// </summary>
         [JsonProperty("quantity")]
-        public double? Quantity { get; set; }
+        public long? Quantity { get; set; }
 
         /// <summary>
-        /// Остаток
+        /// Неисполненнный Остаток
+        /// для транзакции на снятие неисполненной (в т.ч. частично) заявки.
         /// </summary>
         [JsonProperty("balance")]
-        public double? Balance { get; set; }
+        public long? Balance { get; set; }
 
         /// <summary>
         /// Идентификатор фирмы
@@ -106,10 +110,10 @@ namespace QuikSharp.DataStructures.Transaction
         public string ClientCode { get; set; }
 
         /// <summary>
-        /// Поручение/комментарий, обычно: код клиента/номер поручения
+        /// Комментарий, обычно: код клиента // номер поручения
         /// </summary>
         [JsonProperty("brokerref")]
-        public string Comment { get; set; }
+        public string Brokerref { get; set; }
 
         /// <summary>
         /// Код класса
@@ -136,10 +140,10 @@ namespace QuikSharp.DataStructures.Transaction
         public int ErrorCode { get; set; }
 
         /// <summary>
-        /// Источник сообщения. Возможные значения: 
-        /// «1» – Торговая система; 
-        /// «2» – Сервер QUIK; 
-        /// «3» – Библиотека расчёта лимитов; 
+        /// Источник сообщения. Возможные значения:
+        /// «1» – Торговая система;
+        /// «2» – Сервер QUIK;
+        /// «3» – Библиотека расчёта лимитов;
         /// «4» – Шлюз торговой системы
         /// </summary>
         [JsonProperty("error_source")]
@@ -158,6 +162,6 @@ namespace QuikSharp.DataStructures.Transaction
         public QuikDateTime GateReplyTime { get; set; }
 
         [JsonProperty("lua_timestamp")]
-        public long LuaTimeStamp { get; internal set; }
+        public LuaTimeStamp lua_timestamp { get; set; }
     }
 }

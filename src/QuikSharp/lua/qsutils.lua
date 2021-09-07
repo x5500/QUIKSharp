@@ -2,8 +2,38 @@
 --~ Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 local socket = require ("socket")
-local json = require ("dkjson")
+local json = require ("lua_cjson")
+json.encode_keep_buffer(true)
+json.encode_empty_table_as_object(false)
+json.encode_numbers_as_base64(true);
+json.decode_numbers_as_base64(true);
+
+-- for callcacks, running in separate thread, use new instance
+local json2 = json.new()
+json2.encode_keep_buffer(true)
+json2.encode_empty_table_as_object(false);
+json2.encode_numbers_as_base64(true);
+
 local qsutils = {}
+
+function from_json(str)
+    -- using lua_cjson
+    local status, msg= pcall(json.decode, str)
+    if status then
+        return msg
+    else
+        return nil, msg
+    end
+end
+
+function to_json(msg)
+    local status, str= pcall(json.encode, msg)
+    if status then
+        return str
+    else
+        error(str)
+    end
+end
 
 --- Sleep that always works
 function delay(msec)
@@ -25,6 +55,45 @@ function timemsec()
     end
 end
 
+--- Makes UniqueTransactionID ---
+function getUniqueTransactionID(step)
+	local trans_fname = script_path.."\\trans.id"
+	local trans_id
+
+	-- Пытается открыть файл в режиме "чтения/записи"
+	trf = io.open(trans_fname,"r+")
+	-- Если файл не существует
+	if trf == nil then 
+	  -- Создает файл в режиме "записи"
+	  trf = io.open(trans_fname,"w")
+	else
+		trans_id = trf:read("*n")
+	end
+	if (trans_id == nil) or (trans_id <= 0) then
+		trans_id = math.floor( math.fmod( timemsec()*100, 63244800 ) )
+	end
+	
+	if step == nil then
+		step = 1
+	else 
+		step = step + 0
+		if step < 1 then
+			step = 1
+		end
+	end
+
+	trans_id = (trans_id + step) % 2147483647;
+	if trans_id < step then
+		trans_id = trans_id + step
+	end
+	
+	trf:seek("set")
+	trf:write(trans_id)
+	trf:close();	
+	return (trans_id - step + 1)
+end
+
+
 -- Returns the name of the file that calls this function (without extension)
 function scriptFilename()
     -- Check that Lua runtime was built with debug information enabled
@@ -39,7 +108,6 @@ end
 is_debug = false
 
 -- log files
-
 function openLog()
     os.execute("mkdir \""..script_path.."\\logs\"")
     local lf = io.open (script_path.. "\\logs\\QUIK#_"..os.date("%Y%m%d")..".log", "a")
@@ -47,6 +115,34 @@ function openLog()
         lf = io.open (script_path.. "\\QUIK#_"..os.date("%Y%m%d")..".log", "a")
     end
     return lf
+end
+
+logfile = openLog()
+
+-- closes log
+function closeLog()
+    if logfile then
+        pcall(logfile:close(logfile))
+    end
+end
+
+--- Write to log file and to Quik messages
+function log(msg, level)
+    if not msg then msg = "" end
+    if level == 1 or level == 2 or level == 3 or is_debug then
+        -- only warnings and recoverable errors to Quik
+        if message then
+            pcall(message, msg, level)
+        end
+    end
+    if not level then level = 0 end
+    local logLine = "LOG "..level..": "..msg
+    print(logLine)
+    local msecs = math.floor(math.fmod(timemsec(), 1000));
+    if logfile then
+        pcall(logfile.write, logfile, os.date("%Y-%m-%d %H:%M:%S").."."..msecs.." "..logLine.."\n")
+        pcall(logfile.flush, logfile)
+    end
 end
 
 -- Returns contents of config.json file or nil if no such file exists
@@ -99,48 +195,6 @@ function paramsFromConfig(scriptName)
     end
 end
 
--- closes log
-function closeLog()
-    if logfile then
-        pcall(logfile:close(logfile))
-    end
-end
-
-logfile = openLog()
-
---- Write to log file and to Quik messages
-function log(msg, level)
-    if not msg then msg = "" end
-    if level == 1 or level == 2 or level == 3 or is_debug then
-        -- only warnings and recoverable errors to Quik
-        if message then
-            pcall(message, msg, level)
-        end
-    end
-    if not level then level = 0 end
-    local logLine = "LOG "..level..": "..msg
-    print(logLine)
-    local msecs = math.floor(math.fmod(timemsec(), 1000));
-    if logfile then
-        pcall(logfile.write, logfile, os.date("%Y-%m-%d %H:%M:%S").."."..msecs.." "..logLine.."\n")
-        pcall(logfile.flush, logfile)
-    end
-end
-
--- Doesn't work if string contains empty values, eg. 'foo,,bar'. You get {'foo','bar'} instead of {'foo', '', 'bar'}
-function split(inputstr, sep)
-    if sep == nil then
-        sep = "%s"
-    end
-    local t={}
-    local i=1
-    for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-        t[i] = str
-        i = i + 1
-    end
-    return t
-end
-
 -- https://stackoverflow.com/questions/1426954/split-string-in-lua#comment73602874_7615129
 function split2(inputstr, sep)
     sep = sep or '%s'
@@ -153,26 +207,13 @@ function split2(inputstr, sep)
     end
 end
 
-function from_json(str)
-    local status, msg= pcall(json.decode, str, 1, json.null) -- dkjson
-    if status then
-        return msg
-    else
-        return nil, msg
-    end
-end
-
-function to_json(msg)
-    local status, str= pcall(json.encode, msg, { indent = false }) -- dkjson
-    if status then
-        return str
-    else
-        error(str)
-    end
-end
-
 -- current connection state
 is_connected = false
+
+-- we need two ports since callbacks and responses conflict and write to the same socket at the same time
+-- I do not know how to make locking in Lua, it is just simpler to have two independent connections
+-- To connect to a remote terminal - replace 'localhost' with the terminal ip-address
+
 local response_server
 local callback_server
 local response_client
@@ -259,49 +300,53 @@ function receiveRequest()
     if not is_connected then
         return nil, "not conencted"
     end
-    local status, requestString= pcall(response_client.receive, response_client)
+    local status, requestString = pcall(response_client.receive, response_client)
     if status and requestString then
-        local msg_table, err = from_json(requestString)
-        if err then
-            log(err, 3)
-            return nil, err
-        else
-            return msg_table
-        end
+        return requestString
     else
         disconnected()
-        return nil, err
+        return nil, requestString
     end
 end
 
-function sendResponse(msg_table)
-    -- if not set explicitly then set CreatedTime "t" property here
-    -- if not msg_table.t then msg_table.t = timemsec() end
-    local responseString = to_json(msg_table)
+function sendResponse(responseString)
     if is_connected then
         local status, res = pcall(response_client.send, response_client, responseString..'\n')
         if status and res then
             return true
         else
             disconnected()
-            return nil, err
+            return nil, res
         end
     end
 end
 
 function sendCallback(msg_table)
-    -- if not set explicitly then set CreatedTime "t" property here
-    -- if not msg_table.t then msg_table.t = timemsec() end
-    local callback_string = to_json(msg_table)
-    if is_connected then
-        local status, res = pcall(callback_client.send, callback_client, callback_string..'\n')
-        if status and res then
-            return true
-        else
-            disconnected()
-            return nil, err
-        end
+    if not is_connected then
+        return nil
     end
+
+    -- if not set explicitly then set CreatedTime "t" property here
+    if not msg_table.t then msg_table.t = timemsec() end
+
+    local state, res, callback_string
+    -- use another instance of json converter, cause callbacks runs in separate thread
+    state, callback_string = pcall(json2.encode, msg_table)
+    if not state then
+        return nil, callback_string;
+    end
+
+    state, res = pcall(callback_client.send, callback_client, callback_string..'\n')
+    if state and res then
+        return true
+    else
+        disconnected()
+        return nil, res
+    end
+end
+
+function round(x)
+  return x>=0 and math.floor(x+0.5) or math.ceil(x-0.5)
 end
 
 return qsutils
