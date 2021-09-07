@@ -1,3 +1,9 @@
+QUIKSharp#
+==========
+QUIKSharp is the QUIK Lua interface ported to .NET.
+The library exposes most functions and events available in QLUA as C# async functions and events.
+This is a fork of the original library, radically changed.
+
 CHANGES: PERFOMANCE+++
 ==========
  + Changed API.
@@ -10,21 +16,10 @@ CHANGES: PERFOMANCE+++
  + LUA JSON encoder/decoder speedup with custom BASE64 serialize for int64 & DOUBLE values.
  - Candles Service got no improvements, they are still as slow as they were...
 
-QUIK#
-==========
-QUIK# (QUIK Sharp) is the QUIK Lua interface ported to .NET.
-
-QUIK# exposes all functions and events available in QLUA as C# async functions
-and events.
-
 License
 ----------------------
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
+Original QUIKSharp library Licensed under the Apache License, Version 2.0 (the "License").
+Some components are licensed under MIT License.
 
 This software is distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
