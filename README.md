@@ -1,10 +1,14 @@
+CHANGES: PERFOMANCE+++
 ==========
-CHANGES (PERFOMANCE+++):
  + Changed API.
- + Rewitten some services
+ + The API has been changed.
+ + Some services have been rewritten
+ + Rewritten workflow of transactions and TransID.
+ + Added Batch processing for some common used functions like: GetParamEx
  + Rewitten Transac & TransID workflow
- + JSON encoder/decoder powered with BASE64 serialize for int64 & DOUBLE values.
- + LUA JSON encoder/decoder speedup with BASE64 serialize for int64 & DOUBLE values.
+ + JSON encoder/decoder powered up with custom BASE64 serialize for int64 & DOUBLE values.
+ + LUA JSON encoder/decoder speedup with custom BASE64 serialize for int64 & DOUBLE values.
+ - Candles Service got no improvements, they are still as slow as they were...
 
 QUIK#
 ==========
