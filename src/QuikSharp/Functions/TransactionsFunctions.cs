@@ -63,7 +63,7 @@ namespace QUIKSharp.Functions
         /// </summary>
         public Task<long> LuaNewTransactionID(long step, CancellationToken cancellationToken)
         {
-            return QuikService.SendAsync<long>(new Message<long>(step, "NewTransactionID"));
+            return QuikService.SendAsync<long>(new Message<long>(step, "NewTransactionID"), cancellationToken);
         }
 
         /// <summary>
@@ -188,7 +188,7 @@ namespace QUIKSharp.Functions
             // Сервис quik может сообщить об ошибке так же и бросив Exception, например на Timeout
             try
             {
-                bool sent_ok = await QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction")).ConfigureAwait(false);
+                bool sent_ok = await QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction"), cancellationToken).ConfigureAwait(false);
                 if (!sent_ok)
                 {
                     string ResultMsg = "SendTransactionAsync: Call for LUA function 'sendTransaction' failed!";

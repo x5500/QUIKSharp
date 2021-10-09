@@ -3,26 +3,27 @@
 
 using QUIKSharp.DataStructures;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace QUIKSharp
 {
     public interface ICandleFunctions
     {
-        Task<List<Candle>> GetAllCandles(string graphicTag);
+        Task<List<Candle>> GetAllCandles(string graphicTag, CancellationToken cancellationToken);
 
-        Task<List<Candle>> GetAllCandles(ISecurity sec, CandleInterval interval);
+        Task<List<Candle>> GetAllCandles(ISecurity sec, CandleInterval interval, CancellationToken cancellationToken);
 
-        Task<List<Candle>> GetCandles(string graphicTag, long line, long first, long count);
+        Task<List<Candle>> GetCandles(string graphicTag, long line, long first, long count, CancellationToken cancellationToken);
 
-        Task<List<Candle>> GetLastCandles(ISecurity sec, CandleInterval interval, long count);
+        Task<List<Candle>> GetLastCandles(ISecurity sec, CandleInterval interval, long count, CancellationToken cancellationToken);
 
-        Task<long> GetNumCandles(string graphicTag);
+        Task<long> GetNumCandles(string graphicTag, CancellationToken cancellationToken);
 
-        Task<bool> IsSubscribed(ISecurity sec, CandleInterval interval);
+        Task<bool> IsSubscribed(ISecurity sec, CandleInterval interval, CancellationToken cancellationToken);
 
-        Task Subscribe(ISecurity sec, CandleInterval interval);
+        Task Subscribe(ISecurity sec, CandleInterval interval, CancellationToken cancellationToken);
 
-        Task Unsubscribe(ISecurity sec, CandleInterval interval);
+        Task Unsubscribe(ISecurity sec, CandleInterval interval, CancellationToken cancellationToken);
     }
 }

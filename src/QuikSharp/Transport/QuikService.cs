@@ -170,7 +170,7 @@ namespace QUIKSharp.Transport
         /// <summary>
         /// If received message has a correlation id then use its Data to SetResult on TCS and remove the TCS from the dic
         /// </summary>
-        private readonly ConcurrentDictionary<long, RequestReplyState<JToken>> Responses = new ConcurrentDictionary<long, RequestReplyState<JToken>>();
+        private readonly ConcurrentDictionary<long, RequestReplyStateBase> Responses = new ConcurrentDictionary<long, RequestReplyStateBase>();
         /// <summary>
         /// Get network stats
         /// </summary>
@@ -631,7 +631,7 @@ namespace QUIKSharp.Transport
             //Deserialize into a JObject
             JToken jtoken = JObject.Parse(callback);
             string command = (string)jtoken.SelectToken("cmd");
-            ProcessMessageForLuaError(jtoken, command);
+            RequestReplyStateBase.ProcessMessageForLuaError(jtoken, command);
 
             var parsed = Enum.TryParse<EventNames>(command, true, out var eventName);
             if (!parsed)
@@ -742,79 +742,33 @@ namespace QUIKSharp.Transport
             }
         }
         public Task<TResult> SendAsync<TResult>(IMessage request) => SendAsync<TResult>(request, CancellationToken.None);
-        public async Task<TResult> SendAsync<TResult>(IMessage request, CancellationToken task_cancel)
+        public Task<TResult> SendAsync<TResult>(IMessage request, CancellationToken task_cancel)
         {
             var service_stop = StopAllCancellation.Token;
-            CancellationTokenSource _cts = CancellationTokenSource.CreateLinkedTokenSource(task_cancel, service_stop);
-            if (DefaultSendTimeout.Milliseconds > 0)
-                _cts.CancelAfter(DefaultSendTimeout);
 
             if (request.Id <= 0)
                 request.Id = GetNewUniqueId();
 
-            var responseType = typeof(Message<TResult>);
-            var rr = new RequestReplyState<JToken>(request, responseType, _cts.Token);
+            var rr = new RequestReplyState<TResult>(request, task_cancel, service_stop);
+            if (DefaultSendTimeout.TotalMilliseconds > 0)
+                rr.CancelAfter(DefaultSendTimeout);
+
             Responses[request.Id] = rr;
             // add to queue after responses dictionary
             AddToQueue(request);
-            try
+            _ = rr.ResultTask.ContinueWith((t,id) =>
             {
-
-                JToken jtoken = await rr.ResultTask.ConfigureAwait(false);
-                var command = (string)jtoken.SelectToken("cmd");
-                ProcessMessageForLuaError(jtoken, command);
-                var response = jtoken.FromJToken(responseType) as IMessage;
-                if (response.ValidUntil.HasValue && response.ValidUntil < DateTime.UtcNow)
-                    throw new TimeoutException($"Respose message (Id:{response.Id}, cmd:{command}) expired! ValidUntilUTC is less than current time");
-                if (string.Compare(request.Command, response.Command, true) != 0)
-                    throw new Exception($"SendAsync: Fatal exception: response.Command[{response.Command}] != request.command[{request.Command}]");
-                return (TResult)response.Data;
-            }
-            catch (OperationCanceledException e)
-            {
-                if (task_cancel.IsCancellationRequested)
-                    throw new OperationCanceledException("Operation cancelled.", e);
-                if (service_stop.IsCancellationRequested)
-                    throw new OperationCanceledException("Service stopped!", e);
-                else
-                    throw new TimeoutException("Send operation timed out", e);
-            }
-            catch (TimeoutException)
-            {
-                throw;
-            }
-            catch (LuaException)
-            {
-                throw;
-            }
-            catch (Exception e) // deserialization exception is possible
-            {
-                logger.Error(e, $"Exception in 'SendAsync, processing response': {e.Message}");
-                throw;
-            }
-            finally
-            {
-                Responses.TryRemove(request.Id, out var temp);
-                if (_cts != null)
-                    _cts.Dispose();
-            }
+                Responses.TryRemove((long)id, out var temp);
+            }, request.Id, 
+            cancellationToken: CancellationToken.None,
+            continuationOptions: TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.AttachedToParent, 
+            scheduler: TaskScheduler.Default);
+            return rr.ResultTask;
         }
         private void AddToQueue(IMessage request)
         {
             SendQueue.Enqueue(request);
             SendQueue_Avail.Set();
-        }
-        private static void ProcessMessageForLuaError(JToken jtoken, string cmd)
-        {
-            var lua_error = (string)jtoken.SelectToken("lua_error");
-            if (!string.IsNullOrEmpty(lua_error))
-                if (string.Compare(cmd, "lua_transaction_error") == 0)
-                    throw new TransactionException(lua_error);
-                else
-                    throw new LuaException(lua_error);
-
-            if (string.IsNullOrEmpty(cmd))
-                throw new ArgumentException("Bad message format: no cmd or lua_error fields");
         }
         // ---------------------------------------------------------------------------------------------------
         private bool disposedValue;

@@ -55,7 +55,7 @@ namespace QUIKSharp.Functions
                 default:
                     throw new ArgumentOutOfRangeException(nameof(iconType));
             }
-            return QuikService.SendAsync<string>(new Message<string>(message, cmd));
+            return QuikService.SendAsync<string>(new Message<string>(message, cmd), cancellationToken);
         }
 
         public Task<string> PrintDbgStr(string message, CancellationToken cancellationToken)
