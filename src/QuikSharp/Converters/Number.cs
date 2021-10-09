@@ -63,7 +63,6 @@ namespace QUIKSharp.Converters
                     var base64 = value.Substring(2);
                     byte[] bytes = System.Convert.FromBase64String(base64);
                     var value_as_double = BitConverter.ToDouble(bytes, 0);
-                    //result = (T)typeConverter_double.ConvertTo(value_as_double, typeof(T));
                     result = (T)Convert.ChangeType(value_as_double, typeof(T));
                     return true;
                 }
@@ -72,7 +71,6 @@ namespace QUIKSharp.Converters
                     var base64 = value.Substring(2);
                     byte[] bytes = System.Convert.FromBase64String(base64);
                     var value_as_long = BitConverter.ToInt64(bytes, 0);
-                    //result = (T)typeConverter.ConvertFrom(value_as_long);
                     result = (T)Convert.ChangeType(value_as_long, typeof(T));
                     return true;
                 }
@@ -87,5 +85,10 @@ namespace QUIKSharp.Converters
             return false;
         }
 
+    }
+    public static class Price
+    {
+        public static string PriceToString(this decimal price) => price.ToString("G29");
+        public static string ToString(decimal price) => price.ToString("G29");
     }
 }

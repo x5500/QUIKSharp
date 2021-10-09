@@ -4,6 +4,7 @@
 using QUIKSharp.DataStructures;
 using QUIKSharp.DataStructures.Transaction;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 #pragma warning disable CS1998 // В асинхронном методе отсутствуют операторы await, будет выполнен синхронный метод
@@ -33,22 +34,22 @@ namespace QUIKSharp.TestQuik
             TradeTable[trade.TradeNum] = trade;
         }
 
-        async Task<bool> ITradingFunctions.CancelParamRequest(IStructClassSecParam classSecParam)
+        async Task<bool> ITradingFunctions.CancelParamRequest(IStructClassSecParam classSecParam, CancellationToken cancellationToken)
         {
             return true;
         }
 
-        async Task<bool> ITradingFunctions.CancelParamRequest(ISecurity security, ParamNames paramName)
+        async Task<bool> ITradingFunctions.CancelParamRequest(ISecurity security, ParamNames paramName, CancellationToken cancellationToken)
         {
             return true;
         }
 
-        Task<List<bool>> ITradingFunctions.CancelParamRequestBulk(IEnumerable<IStructClassSecParam> classSecParams)
+        Task<List<bool>> ITradingFunctions.CancelParamRequestBulk(IEnumerable<IStructClassSecParam> classSecParams, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        async Task<List<AllTrade>> ITradingFunctions.GetAllTrades()
+        async Task<List<AllTrade>> ITradingFunctions.GetAllTrades(CancellationToken cancellationToken)
         {
             var l = new List<AllTrade>();
             foreach(var kv in AllTradeTable)
@@ -58,7 +59,7 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        async Task<List<AllTrade>> ITradingFunctions.GetAllTrades(ISecurity security)
+        async Task<List<AllTrade>> ITradingFunctions.GetAllTrades(ISecurity security, CancellationToken cancellationToken)
         {
             var l = new List<AllTrade>();
             foreach (var kv in AllTradeTable)
@@ -69,18 +70,18 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        Task<string> ITradingFunctions.GetClientCodeByTrdAcc(ITrader trader)
+        Task<string> ITradingFunctions.GetClientCodeByTrdAcc(ITrader trader, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        async Task<DepoLimit> ITradingFunctions.GetDepo(ITrader trader, string secCode)
+        async Task<DepoLimit> ITradingFunctions.GetDepo(ITrader trader, string secCode, CancellationToken cancellationToken)
         {
             var d = new DepoLimit();
             return d;
         }
 
-        async Task<DepoLimitEx> ITradingFunctions.GetDepoEx(ITrader trader, string secCode, int limitKind)
+        async Task<DepoLimitEx> ITradingFunctions.GetDepoEx(ITrader trader, string secCode, int limitKind, CancellationToken cancellationToken)
         {
             var d = new DepoLimitEx
             {
@@ -93,74 +94,74 @@ namespace QUIKSharp.TestQuik
             return d;
         }
 
-        async Task<List<DepoLimitEx>> ITradingFunctions.GetDepoLimits()
+        async Task<List<DepoLimitEx>> ITradingFunctions.GetDepoLimits(CancellationToken cancellationToken)
         {
             var l = new List<DepoLimitEx>();
             return l;
         }
 
-        async Task<List<DepoLimitEx>> ITradingFunctions.GetDepoLimits(string secCode)
+        async Task<List<DepoLimitEx>> ITradingFunctions.GetDepoLimits(string secCode, CancellationToken cancellationToken)
         {
             var l = new List<DepoLimitEx>();
             return l;
         }
 
-        Task<MoneyLimit> ITradingFunctions.GetMoney(ITrader trader, string tag, string currCode)
+        Task<MoneyLimit> ITradingFunctions.GetMoney(ITrader trader, string tag, string currCode, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<MoneyLimitEx> ITradingFunctions.GetMoneyEx(ITrader trader, string tag, string currCode, int limitKind)
+        Task<MoneyLimitEx> ITradingFunctions.GetMoneyEx(ITrader trader, string tag, string currCode, int limitKind, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<List<MoneyLimitEx>> ITradingFunctions.GetMoneyLimits()
+        Task<List<MoneyLimitEx>> ITradingFunctions.GetMoneyLimits(CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<List<OptionBoard>> ITradingFunctions.GetOptionBoard(ISecurity security)
+        Task<List<OptionBoard>> ITradingFunctions.GetOptionBoard(ISecurity security, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<ParamTable> ITradingFunctions.GetParamEx(IStructClassSecParam classSecParam)
+        Task<ParamTable> ITradingFunctions.GetParamEx(IStructClassSecParam classSecParam, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<ParamTable> ITradingFunctions.GetParamEx(ISecurity security, ParamNames paramName)
+        Task<ParamTable> ITradingFunctions.GetParamEx(ISecurity security, ParamNames paramName, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<ParamTable> ITradingFunctions.GetParamEx2(IStructClassSecParam classSecParam)
+        Task<ParamTable> ITradingFunctions.GetParamEx2(IStructClassSecParam classSecParam, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<ParamTable> ITradingFunctions.GetParamEx2(ISecurity security, ParamNames paramName)
+        Task<ParamTable> ITradingFunctions.GetParamEx2(ISecurity security, ParamNames paramName, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<List<ParamTable>> ITradingFunctions.GetParamEx2Bulk(IEnumerable<IStructClassSecParam> classSecParams)
+        Task<List<ParamTable>> ITradingFunctions.GetParamEx2Bulk(IEnumerable<IStructClassSecParam> classSecParams, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<PortfolioInfo> ITradingFunctions.GetPortfolioInfo(ITrader trader)
+        Task<PortfolioInfo> ITradingFunctions.GetPortfolioInfo(ITrader trader, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<PortfolioInfoEx> ITradingFunctions.GetPortfolioInfoEx(ITrader trader, int limitKind)
+        Task<PortfolioInfoEx> ITradingFunctions.GetPortfolioInfoEx(ITrader trader, int limitKind, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        async Task<List<Trade>> ITradingFunctions.GetTrades()
+        async Task<List<Trade>> ITradingFunctions.GetTrades(CancellationToken cancellationToken)
         {
             var l = new List<Trade>();
             foreach (var kv in TradeTable)
@@ -170,7 +171,7 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        async Task<List<Trade>> ITradingFunctions.GetTrades(ISecurity security)
+        async Task<List<Trade>> ITradingFunctions.GetTrades(ISecurity security, CancellationToken cancellationToken)
         {
             var l = new List<Trade>();
             foreach (var kv in TradeTable)
@@ -181,7 +182,7 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        async Task<List<Trade>> ITradingFunctions.GetTrades_by_OdrerNumber(long orderNum)
+        async Task<List<Trade>> ITradingFunctions.GetTrades_by_OdrerNumber(long orderNum, CancellationToken cancellationToken)
         {
             var l = new List<Trade>();
             foreach (var kv in TradeTable)
@@ -192,27 +193,27 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        Task<string> ITradingFunctions.GetTrdAccByClientCode(ITrader trader)
+        Task<string> ITradingFunctions.GetTrdAccByClientCode(ITrader trader, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        Task<bool> ITradingFunctions.IsUcpClient(ITrader trader)
+        Task<bool> ITradingFunctions.IsUcpClient(ITrader trader, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        async Task<bool> ITradingFunctions.ParamRequest(IStructClassSecParam classSecParam)
+        async Task<bool> ITradingFunctions.ParamRequest(IStructClassSecParam classSecParam, CancellationToken cancellationToken)
         {
             return true;
         }
 
-        async Task<bool> ITradingFunctions.ParamRequest(ISecurity security, ParamNames paramName)
+        async Task<bool> ITradingFunctions.ParamRequest(ISecurity security, ParamNames paramName, CancellationToken cancellationToken)
         {
             return true;
         }
 
-        Task<List<bool>> ITradingFunctions.ParamRequestBulk(IEnumerable<IStructClassSecParam> classSecParams)
+        Task<List<bool>> ITradingFunctions.ParamRequestBulk(IEnumerable<IStructClassSecParam> classSecParams, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }

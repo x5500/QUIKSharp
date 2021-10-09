@@ -61,7 +61,7 @@ namespace QUIKSharp.Functions
         /// Возвращает число пригодное для использования как идентификатор транзакции trans_id
         /// В качестве параметра функции можно передать шаг с которым выдавать следующий TransanctionID - полезно если нужно зарезервировать сразу несколько id
         /// </summary>
-        public Task<long> LuaNewTransactionID(long step = 1)
+        public Task<long> LuaNewTransactionID(long step, CancellationToken cancellationToken)
         {
             return QuikService.SendAsync<long>(new Message<long>(step, "NewTransactionID"));
         }
@@ -69,31 +69,26 @@ namespace QUIKSharp.Functions
         /// <summary>
         /// Выставляем TRANS_ID для транзакции
         /// </summary>
-        /// <param name="t"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
-        public bool SetTransactionId(Transaction t)
+        public void SetTransactionId(Transaction transaction)
         {
             if (IdProvider == null)
                 throw new NullReferenceException("SendWaitTransactionAsync: idProvider == null");
 
-            try
-            {
-                t.TRANS_ID = IdProvider.IdentifyTransaction(t);
-                return true;
-            }
-            catch (LuaException e)
-            {
-                t.ErrorMessage = e.Message; // Legacy
-                return false;
-            }
+            if (transaction == null)
+                throw new NullReferenceException("SendWaitTransactionAsync: transaction == null");
+
+            transaction.TRANS_ID = IdProvider.IdentifyTransaction(transaction);
         }
         /// <summary>
         /// Функция отправляет транзакцию на сервер QUIK и возвращает true в случае успеха,
         /// в случае неудачи возращает false и текст ошибки в свойтве ErrorMessage транзакции.
         /// </summary>
         /// <param name="t">Transaction</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>bool - result</returns>
-        public async Task<TransactionResult> SendTransactionAsync(Transaction t)
+        public async Task<TransactionResult> SendTransactionAsync(Transaction t, CancellationToken cancellationToken)
         {
             if (IdProvider == null)
                 throw new NullReferenceException("SendWaitTransactionAsync: idProvider == null");
@@ -105,24 +100,21 @@ namespace QUIKSharp.Functions
             }
             catch (LuaException e)
             {
-                t.ErrorMessage = e.Message; // Legacy
                 return new TransactionResult() { Result = TransactionStatus.LuaException, ResultMsg = e.Message, TransId = 0 };
             }
 
             try
             {
-                bool sent_ok = await QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction")).ConfigureAwait(false);
+                bool sent_ok = await QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction"), cancellationToken).ConfigureAwait(false);
                 if (sent_ok) // bool, true if transaction was sent
                     return new TransactionResult() { Result = TransactionStatus.Success, ResultMsg = string.Empty, TransId = TRANS_ID };
 
                 string ResultMsg = "Failed call LUA function SendTransaction: result == false";
-                t.ErrorMessage = ResultMsg;
                 logger.ConditionalDebug(ResultMsg);
                 return new TransactionResult() { Result = TransactionStatus.FailedToSend, ResultMsg = ResultMsg, TransId = TRANS_ID };
             }
             catch (TransactionException e)
             {
-                t.ErrorMessage = e.Message;
                 if (logger.IsDebugEnabled)
                     logger.Debug("TransactionException: " + e.Message);
                 return new TransactionResult() { Result = TransactionStatus.TransactionException, ResultMsg = e.Message, TransId = TRANS_ID };
@@ -131,7 +123,6 @@ namespace QUIKSharp.Functions
             {
                 // Не дождались отправки/получения , задача завершена по таймауту
                 var ResultMsg = "Timeout while SendTransaction using service Quik";
-                t.ErrorMessage = ResultMsg;
                 return new TransactionResult() { Result = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg, TransId = TRANS_ID };
             }
             catch (Exception e)
@@ -147,13 +138,14 @@ namespace QUIKSharp.Functions
         /// LEGACY
         /// </summary>
         /// <param name="t"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns>TRANS_ID if success, -1 or -TRANS_ID if fails</returns>
-        public async Task<long> SendTransaction(Transaction t)
+        public async Task<long> SendTransaction(Transaction t, CancellationToken cancellationToken)
         {
             // dirty hack: if transaction was sent we return its id,
             // else we return negative id so the caller will know that
             // the transaction was not sent
-            var result = await SendTransactionAsync(t).ConfigureAwait(false);
+            var result = await SendTransactionAsync(t, cancellationToken).ConfigureAwait(false);
             if (result.Result == TransactionStatus.Success)
                 return result.TransId;
             else
@@ -188,7 +180,6 @@ namespace QUIKSharp.Functions
             }
             catch (LuaException e)
             {
-                t.ErrorMessage = e.Message; // Legacy
                 return new TransactionWaitResult { transReply = null, Status = TransactionStatus.LuaException, ResultMsg = e.Message };
             }
 
@@ -210,7 +201,6 @@ namespace QUIKSharp.Functions
                 if (logger.IsDebugEnabled)
                     logger.Debug("TransactionException: " + e.Message);
 
-                t.ErrorMessage = e.Message;
                 var status = (e.Message == "Not connected") ? TransactionStatus.NoConnection : TransactionStatus.TransactionException;
                 return new TransactionWaitResult { transReply = null, Status = status, ResultMsg = e.Message };
             }
@@ -218,7 +208,6 @@ namespace QUIKSharp.Functions
             {
                 // Не дождались отправки/получения , задача завершена по таймауту
                 var ResultMsg = "Timeout while SendTransaction using service Quik";
-                t.ErrorMessage = ResultMsg;
                 return new TransactionWaitResult { transReply = null, Status = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg };
             }
             catch (Exception e)

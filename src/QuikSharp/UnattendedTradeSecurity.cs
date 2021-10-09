@@ -3,9 +3,13 @@
 
 using QUIKSharp.DataStructures;
 
-namespace QUIKSharp.QOrders
+namespace QUIKSharp
 {
-    public class UnattendedTradeSecurity : Param, ITradeSecurity, ISecurity, ITrader
+    public class UnattendedSecurity : Param, ISecurity
+    {
+    }
+
+    public class UnattendedTradeSecurity : UnattendedSecurity, ITradeSecurity, ISecurity, ITrader
     {
         public string AccountID { get; set; }
         public string ClientCode { get; set; }

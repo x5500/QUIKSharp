@@ -433,8 +433,6 @@ namespace QUIKSharp.DataStructures.Transaction
         [JsonProperty("waiver_flag")]
         public TradeWaiverFlags WaiverFlag { get; set; }
 
-        //public int WaiverFlag { get; set; }
-
         /// <summary>
         /// Идентификатор базового инструмента на сервере для multileg-инструментов
         /// </summary>
@@ -471,8 +469,6 @@ namespace QUIKSharp.DataStructures.Transaction
         /// </summary>
         [JsonProperty("otc_post_trade_indicator")]
         public TradeOTCPostTradeIndicatorFlags OTCPostTradeIndicator { get; set; }
-
-        //public int OTCPostTradeIndicator { get; set; }
 
         /// <summary>
         /// Роль в исполнении заявки. Возможные значения:

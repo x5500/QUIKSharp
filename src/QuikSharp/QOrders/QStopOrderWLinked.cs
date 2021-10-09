@@ -63,8 +63,8 @@ namespace QUIKSharp.QOrders
 
         internal override void UpdateFrom(StopOrder stopOrder, bool noCallEvents)
         {
-            base.UpdateFrom(stopOrder, noCallEvents);
             TakePrice = stopOrder.co_order_price;
+            base.UpdateFrom(stopOrder, noCallEvents);
         }
 
         public override Transaction PlaceOrderTransaction()

@@ -368,17 +368,17 @@ namespace QUIKSharp.TestQuik
                 testService._isConnected = false;
                 events.OnDisconnectedCall();
 
-                await Task.Delay(500);
+                await Task.Delay(500).ConfigureAwait(false);
 
                 events.OnDisconnectedFromQuikCall();
 
                 logging.Info("Emulator: Disconnected...");
-                await Task.Delay(1000);
+                await Task.Delay(1000).ConfigureAwait(false);
                 logging.Info("Emulator: Connected...");
 
                 testService._isConnected = true;
                 events.OnConnectedToQuikCall(0);
-                await Task.Delay(500);
+                await Task.Delay(500).ConfigureAwait(false);
                 events.OnConnectedCall();
             }
             finally

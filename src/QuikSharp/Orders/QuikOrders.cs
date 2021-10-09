@@ -166,7 +166,6 @@ namespace QUIKSharp.Orders
         /// <param name="qty">Количество (в лотах)</param>
         public Task<OrderResult> SendStopOrder(ITradeSecurity trsec, Operation operation, decimal stopprice, decimal dealprice, long qty)
         {
-            //Order order_result = new Order();
             Transaction newOrderTransaction = new Transaction
             {
                 ACTION = TransactionAction.NEW_STOP_ORDER,
@@ -542,8 +541,10 @@ namespace QUIKSharp.Orders
                 case StopOrderType.TakeProfitStopLimit:
                     return StopOrderKind.TAKE_PROFIT_AND_STOP_LIMIT_ORDER;
 
-                //case StopOrderType.AnotherInstCondition:
-                //return StopOrderKind.CONDITION_PRICE_BY_OTHER_SEC;
+                /*
+                 * TODO: case StopOrderType.AnotherInstCondition:
+                 * return StopOrderKind.CONDITION_PRICE_BY_OTHER_SEC;
+                 */
 
                 case StopOrderType.StopLimitOnActiveOrderExecution:
                     return StopOrderKind.ACTIVATED_BY_ORDER_SIMPLE_STOP_ORDER;
@@ -587,7 +588,6 @@ namespace QUIKSharp.Orders
                 ? QuikDateTimeConverter.DateTimeToYYYYMMDD(orderNew.Expiry)
                 : "GTC";
 
-            //            if (orderNew.StopOrderType == StopOrderType.TakeProfit || orderNew.StopOrderType == StopOrderType.TakeProfitStopLimit || orderNew.StopOrderType == StopOrderType.SimpleStopOrder)
             if (orderNew.StopOrderType == StopOrderType.TakeProfitStopLimit)
             {
                 if (orderNew.ActiveFromTime < orderNew.ActiveToTime && orderNew.ActiveToTime > TimeSpan.Zero)

@@ -15,7 +15,6 @@ namespace QUIKSharp
     /// </summary>
     public sealed class Quik : IDisposable, IQuik
     {
-        //public static readonly Char separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator[0];
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
         private bool disposedValue;
@@ -34,12 +33,7 @@ namespace QUIKSharp
         /// </summary>
         public const int DefaultPort = 34130;
 
-        /// <summary>
-        /// Quik current data is all in local time. This property allows to convert it to UTC datetime
-        /// </summary>
-        //public TimeZoneInfo TimeZoneInfo { get; set; }
         private DebugFunctions _Debug;
-
         private ServiceFunctions _Service;
         private ClassFunctions _Class;
         private OrderBookFunctions _OrderBook;
@@ -60,7 +54,6 @@ namespace QUIKSharp
             var assembly = Assembly.GetExecutingAssembly();
             logger.ConditionalDebug(string.Concat(assembly.FullName, " image runtime ver.: ", assembly.ImageRuntimeVersion));
 
-            //quikService = new QuikService3(QuikTransportService.Create(port, host));
             var host_ip = (string.IsNullOrEmpty(host)) ? DefaultHost : IPAddress.Parse(host);
             quikService = QuikService.Create(host_ip, port, port+1);
             quikService.DefaultSendTimeout = TimeSpan.FromSeconds(defaultSendTimeout_sec);
@@ -168,7 +161,7 @@ namespace QUIKSharp
             }
         }
 
-        void IDisposable.Dispose()
+        public void Dispose()
         {
             // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
             Dispose(disposing: true);

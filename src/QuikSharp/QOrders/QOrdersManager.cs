@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2021 Alex Mishin, https://github.com/x8800
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
-
+using HellBrick.Collections;
 using NLog;
 using QUIKSharp.DataStructures.Transaction;
 using QUIKSharp.Functions;
@@ -8,7 +8,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 
 namespace QUIKSharp.QOrders
 {
@@ -75,12 +74,13 @@ namespace QUIKSharp.QOrders
         /// <summary>
         /// Очередь задач на асинхронное выполнение
         /// </summary>
-        private readonly ActionBlock<QOrdersAction> actionQuery;
+        private readonly AsyncQueue<QOrdersAction> actionQuery = new AsyncQueue<QOrdersAction>();
+
+        private Task _actionTask;
 
         private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
 
         private readonly AsyncManualResetEvent NotifyOnConnected = new AsyncManualResetEvent();
-        private bool disposedValue;
 
         private bool IsInitialized = false;
 
@@ -99,15 +99,41 @@ namespace QUIKSharp.QOrders
             Timeout_ms = timeout_wait_order;
             this.Delay_on_Timeout = delay_on_timeout;
 
-            actionQuery = new ActionBlock<QOrdersAction>(action: ActionBlockConsumer, dataflowBlockOptions: new ExecutionDataflowBlockOptions()
+/*            actionQuery = new ActionBlock<QOrdersAction>(action: ActionBlockConsumer, dataflowBlockOptions: new ExecutionDataflowBlockOptions()
             {
+                SingleProducerConstrained = false,
                 BoundedCapacity = tasks_query_capacity,
                 MaxDegreeOfParallelism = max_parallel_tasks,
-                CancellationToken = cancellation.Token
+                TaskScheduler = TaskScheduler.Current,
+                CancellationToken = cancellation.Token,
             });
+*/
+            // Request Task
+            // NB we use the token for signalling, could use a simple TCS
+            var task_options = TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach | TaskCreationOptions.PreferFairness;
+            _actionTask = Task.Factory.StartNew(RequestTaskAction, CancellationToken.None, task_options, TaskScheduler.Default);
 
             LinkQuik(quik);
         }
+
+        private async void RequestTaskAction()
+        {
+            var cancelToken = cancellation.Token;
+            // Enter the listening loop.
+            while (!cancelToken.IsCancellationRequested)
+            {
+                try
+                {
+                    QOrdersAction action = await actionQuery.TakeAsync(cancelToken).ConfigureAwait(false);
+                    await ActionBlockConsumer(action).ConfigureAwait(false);
+                }
+                catch (Exception e) 
+                {
+                    logger.Error(e, $"RequestTaskAction loop: {e.Message}");
+                }
+            }
+        }
+
 
         public event LimitOrderEventHandler OnNewLimitOrder;
 
@@ -135,22 +161,6 @@ namespace QUIKSharp.QOrders
             limit_orders.Clear();
             stop_orders.Clear();
             limit_trades.Clear();
-        }
-
-        // // TODO: переопределить метод завершения, только если "Dispose(bool disposing)" содержит код для освобождения неуправляемых ресурсов
-        // ~QOrdersManager()
-        // {
-        //     // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
-        //     Dispose(disposing: false);
-        // }
-        /// <summary>
-        ///
-        /// </summary>
-        public void Dispose()
-        {
-            // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -309,8 +319,6 @@ namespace QUIKSharp.QOrders
         /// <returns></returns>
         public async Task<QOrderActionResult> MoveLimOrderAsync(QLimitOrder qOrder, CancellationToken cancellation_token, int retry = 1)
         {
-            if (qOrder.State == QOrderState.Placed)
-                qOrder.State = QOrderState.WaitMove;
 
             CancellationToken my_cancellation_token;
             if (cancellation_token != CancellationToken.None)
@@ -323,7 +331,10 @@ namespace QUIKSharp.QOrders
                 my_cancellation_token = cancellation.Token;
             }
 
-            while (my_cancellation_token.IsCancellationRequested)
+            if (qOrder.State == QOrderState.Placed)
+                qOrder.State = QOrderState.WaitMove;
+
+            while (!my_cancellation_token.IsCancellationRequested)
             {
                 if (qOrder.State != QOrderState.WaitMove)
                     return new QOrderActionResult() { Result = false, ResultMsg = "qOrder.State != QOrderState.WaitMove" };
@@ -336,8 +347,6 @@ namespace QUIKSharp.QOrders
                 var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(my_cancellation_token, timeoutCancel.Token);
 
                 qOrder.State = QOrderState.RequestedMove;
-                //var trans_id = quik.Transactions.IdProvider.IdentifyTransaction(t);
-
                 var reply = await quik.Transactions.SendWaitTransactionAsync(t, linked_CTS.Token).ConfigureAwait(false);
                 switch (reply.Status)
                 {
@@ -393,6 +402,9 @@ namespace QUIKSharp.QOrders
                 }
                 // Try one more time
             }
+
+            if (qOrder.State == QOrderState.WaitMove)
+                qOrder.State = QOrderState.Placed;
             return new QOrderActionResult() { Result = false, ResultMsg = "Task cancelled." }; ;
         }
 
@@ -571,12 +583,12 @@ namespace QUIKSharp.QOrders
         public void RequestKillOrder(QOrder qOrder)
         {
             qOrder.Killstate = QOrderKillState.WaitKill;
-            actionQuery.Post(new QOrdersAction
+            actionQuery.Add(new QOrdersAction
             {
                 action = QOrdersActionType.KIllOrder,
                 qOrder = qOrder,
                 cancellationToken = CancellationToken.None,
-            });
+            });            
         }
 
         /// <summary>
@@ -585,7 +597,7 @@ namespace QUIKSharp.QOrders
         /// <param name="qOrder"></param>
         public void RequestMoveOrder(QLimitOrder qOrder)
         {
-            actionQuery.Post(new QOrdersAction
+            actionQuery.Add(new QOrdersAction
             {
                 action = QOrdersActionType.MoveOrder,
                 qOrder = qOrder,
@@ -599,7 +611,7 @@ namespace QUIKSharp.QOrders
         /// <param name="qOrder"></param>
         public void RequestPlaceOrder(QOrder qOrder)
         {
-            actionQuery.Post(new QOrdersAction
+            actionQuery.Add(new QOrdersAction
             {
                 action = QOrdersActionType.PlaceOrder,
                 qOrder = qOrder,
@@ -607,6 +619,14 @@ namespace QUIKSharp.QOrders
             });
         }
 
+        public void Dispose()
+        {
+            // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        private bool disposedValue;
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
@@ -616,14 +636,18 @@ namespace QUIKSharp.QOrders
                     // TODO: освободить управляемое состояние (управляемые объекты)
 
                     // Сообщает блоку потока данных, что он больше не должен принимать и создавать сообщения и поглощать отложенные сообщения.
-                    actionQuery.Complete();
                     NotifyOnConnected.Cancel();
 
                     cancellation.Cancel();
-                    UnlinkQuik();
 
                     // Wait for all messages to propagate through the network.
-                    actionQuery.Completion.Wait();
+                    if (_actionTask != null)
+                    {
+                        _actionTask.Wait(5000);
+                        _actionTask = null;
+                    }
+
+                    UnlinkQuik();
 
                     limit_orders.Clear();
                     stop_orders.Clear();
@@ -646,18 +670,28 @@ namespace QUIKSharp.QOrders
 
         private Task ActionBlockConsumer(QOrdersAction action)
         {
-            switch (action.action)
+            try
             {
-                case QOrdersActionType.PlaceOrder:
-                    return PlaceOrderAsync(action.qOrder, CancellationToken.None);
+                switch (action.action)
+                {
+                    case QOrdersActionType.PlaceOrder:
+                        return PlaceOrderAsync(action.qOrder, CancellationToken.None);
 
-                case QOrdersActionType.MoveOrder:
-                    return MoveLimOrderAsync((QLimitOrder)action.qOrder, CancellationToken.None);
+                    case QOrdersActionType.MoveOrder:
+                        return MoveLimOrderAsync((QLimitOrder)action.qOrder, CancellationToken.None);
 
-                case QOrdersActionType.KIllOrder:
-                    return KillOrderAsync(action.qOrder, CancellationToken.None);
+                    case QOrdersActionType.KIllOrder:
+                        return KillOrderAsync(action.qOrder, CancellationToken.None);
+
+                    default:
+                        return Task.FromException(new InvalidOperationException($"QOrder ActionBlockConsumer Failed: Not implemented for '{action.action}'"));
+                }
             }
-            return Task.CompletedTask;
+            catch (Exception e)
+            {
+                logger.Error(e, "QOrder ActionBlockConsumer Exception: ");
+                return Task.FromException(e);
+            }
         }
 
         /// <summary>
@@ -792,7 +826,7 @@ namespace QUIKSharp.QOrders
 
         private void Events_OnConnectedToQuik(int port)
         {
-            quik.Service.IsConnected().ContinueWith(async (isConnected) =>
+            quik.Service.IsConnected(cancellation.Token).ContinueWith(async (isConnected) =>
            {
                if (isConnected.Result && !IsInitialized)
                {
@@ -826,7 +860,6 @@ namespace QUIKSharp.QOrders
             rwLock.EnterWriteLock();
             try
             {
-                //var limitOrderNum = order.OrderNum;
                 if (!limit_orders.TryGetValue(order.OrderNum, out limitOrder))
                 {
                     long trans_id = quik.Transactions.IdProvider.IdentifyOrder(order);
@@ -984,9 +1017,9 @@ namespace QUIKSharp.QOrders
         // Инициализация
         private async Task InitOrdersListAsync()
         {
-            var limit_orders = quik.Orders.GetOrders();
-            var stop_orders = quik.Orders.GetStopOrders();
-            var trades = quik.Trading.GetTrades();
+            var limit_orders = quik.Orders.GetOrders(cancellation.Token);
+            var stop_orders = quik.Orders.GetStopOrders(cancellation.Token);
+            var trades = quik.Trading.GetTrades(cancellation.Token);
 
             await Task.WhenAll(new Task[] { limit_orders, stop_orders, trades }).ConfigureAwait(false);
 

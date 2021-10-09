@@ -105,6 +105,9 @@ function do_main()
                 local res, err = sendResponse(responseString)
                 t5 = timemsec()
                 if not res then
+                    if  err == nil then
+                        err = "";
+                    end
                     log("Failed to sendResponse: ".. err, 3)
                 end
             else

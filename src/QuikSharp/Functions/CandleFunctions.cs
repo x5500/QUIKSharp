@@ -85,7 +85,8 @@ namespace QUIKSharp.Functions
         public Task Subscribe(ISecurity sec, CandleInterval interval)
         {
             var message = new MessageS(new string[] { sec.ClassCode, sec.SecCode, ((int)interval).ToString() }, "subscribe_to_candles");
-            return QuikService.SendAsync<string>(message);
+            var t = QuikService.SendAsync<string>(message);
+            return t;
         }
 
         /// <summary>
@@ -96,7 +97,8 @@ namespace QUIKSharp.Functions
         public Task Unsubscribe(ISecurity sec, CandleInterval interval)
         {
             var message = new MessageS(new string[] { sec.ClassCode, sec.SecCode, ((int)interval).ToString() }, "unsubscribe_from_candles");
-            return QuikService.SendAsync<string>(message);
+            var t = QuikService.SendAsync<string>(message);
+            return t;
         }
 
         /// <summary>

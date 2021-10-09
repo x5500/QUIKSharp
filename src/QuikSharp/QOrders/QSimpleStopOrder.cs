@@ -9,7 +9,7 @@ namespace QUIKSharp.QOrders
     public class QSimpleStopOrder : QStopOrder, IStopOrder
     {
         public decimal StopPrice { get; set; }
-        public decimal StopDealPrice { get => Price; set => Price = value; }
+        public decimal StopDealPrice { get => base.Price; set => base.Price = value; }
 
         /// <summary>
         /// Price => StopPrice
@@ -34,5 +34,12 @@ namespace QUIKSharp.QOrders
             t.STOP_ORDER_KIND = IsActiveOrderExecution ? StopOrderKind.ACTIVATED_BY_ORDER_SIMPLE_STOP_ORDER : StopOrderKind.SIMPLE_STOP_ORDER;
             return t;
         }
+
+        internal override void UpdateFrom(StopOrder stopOrder, bool noCallEvents)
+        {
+            this.StopPrice = stopOrder.ConditionPrice;
+            base.UpdateFrom(stopOrder, noCallEvents);
+        }
+
     }
 }

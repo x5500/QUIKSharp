@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace QUIKSharp
@@ -18,15 +19,13 @@ namespace QUIKSharp
 
         void Stop();
 
-        Task<TResult> SendAsync<TResult>(IMessage request, int timeout_ms = 0);
+        Task<TResult> SendAsync<TResult>(IMessage request);
+
+        Task<TResult> SendAsync<TResult>(IMessage request, CancellationToken task_cancel);
 
         /// <summary>
         /// Возвращает текущее значение счетчиков статистики работы сервиса
         /// </summary>
-        /// <param name="bytes_sent"></param>
-        /// <param name="bytes_recieved"></param>
-        /// <param name="bytes_callback"></param>
-        /// <param name="request_query_size"></param>
-        void GetNetStats(out long bytes_sent, out long bytes_recieved, out long bytes_callback, out long request_query_size);
+        void GetNetStats(out ServiceNetworkStats networkStats);
     }
 }

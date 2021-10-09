@@ -23,23 +23,25 @@ namespace QUIKSharp
         /// Возвращает число пригодное для использования как идентификатор транзакции trans_id
         /// В качестве параметра функции можно передать шаг с которым выдавать следующий TransanctionID - полезно если нужно зарезервировать сразу несколько id
         /// </summary>
-        Task<long> LuaNewTransactionID(long step = 1);
+        Task<long> LuaNewTransactionID(long step, CancellationToken cancellationToken);
 
         /// <summary>
         /// Send a single transaction to Quik server
         /// LEGACY
         /// </summary>
         /// <param name="t"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns>TRANS_ID if success, -1 or -TRANS_ID if fails</returns>
-        Task<long> SendTransaction(Transaction t);
+        Task<long> SendTransaction(Transaction t, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция отправляет транзакцию на сервер QUIK и возвращает true в случае успеха,
         /// в случае неудачи возращает false и текст ошибки в свойтве ErrorMessage транзакции.
         /// </summary>
         /// <param name="t">Transaction</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>bool - result</returns>
-        Task<TransactionResult> SendTransactionAsync(Transaction t);
+        Task<TransactionResult> SendTransactionAsync(Transaction t, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция отправляет транзакцию на сервер QUIK и ожидает ответа (используя задачи)

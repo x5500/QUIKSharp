@@ -5,6 +5,7 @@ using QUIKSharp;
 using QUIKSharp.DataStructures;
 using QUIKSharp.DataStructures.Transaction;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 #pragma warning disable CS1998 // В асинхронном методе отсутствуют операторы await, будет выполнен синхронный метод
@@ -26,12 +27,12 @@ namespace QUIKSharp.TestQuik
             stopOrderTable.Clear();
         }
 
-        public Task<Order> GetOrder(string classCode, long orderId)
+        public Task<Order> GetOrder(string classCode, long orderId, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
 
-        public async Task<List<Order>> GetOrders()
+        public async Task<List<Order>> GetOrders(CancellationToken cancellationToken)
         {
             var l = new List<Order>();
            foreach (var kv in orderTable)
@@ -41,7 +42,7 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        public async Task<List<Order>> GetOrders(ISecurity sec)
+        public async Task<List<Order>> GetOrders(ISecurity sec, CancellationToken cancellationToken)
         {
             var l = new List<Order>();
             foreach (var kv in orderTable)
@@ -52,14 +53,14 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        public async Task<Order> GetOrder_by_Number(long order_num)
+        public async Task<Order> GetOrder_by_Number(long order_num, CancellationToken cancellationToken)
         {
             if (orderTable.TryGetValue(order_num, out var order))
                 return order;
             return null;
         }
 
-        public async Task<Order> GetOrder_by_transID(ISecurity sec, long trans_id)
+        public async Task<Order> GetOrder_by_transID(ISecurity sec, long trans_id, CancellationToken cancellationToken)
         {
             foreach (var kv in orderTable)
             {
@@ -70,7 +71,7 @@ namespace QUIKSharp.TestQuik
             return null;
         }
 
-        public async Task<List<StopOrder>> GetStopOrders()
+        public async Task<List<StopOrder>> GetStopOrders(CancellationToken cancellationToken)
         {
             var l = new List<StopOrder>();
             foreach (var kv in stopOrderTable)
@@ -80,7 +81,7 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        public async Task<List<StopOrder>> GetStopOrders(ISecurity sec)
+        public async Task<List<StopOrder>> GetStopOrders(ISecurity sec, CancellationToken cancellationToken)
         {
             var l = new List<StopOrder>();
             foreach (var kv in stopOrderTable)

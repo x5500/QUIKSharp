@@ -4,6 +4,7 @@
 using QUIKSharp.DataStructures;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace QUIKSharp.Helpers
@@ -57,16 +58,16 @@ namespace QUIKSharp.Helpers
             return list;
         }
 
-        public async Task RequestGroup(Quik quik, int group)
+        public async Task RequestGroup(Quik quik, int group, CancellationToken cancellationToken)
         {
             var list = this.Select(group);
-            var Result = await quik.Trading.GetParamEx2Bulk(list).ConfigureAwait(false);
+            var Result = await quik.Trading.GetParamEx2Bulk(list, cancellationToken).ConfigureAwait(false);
             GetParamEx2Bulk.ParseResult(list, Result);
         }
-        public async Task RequestAll(Quik quik)
+        public async Task RequestAll(Quik quik, CancellationToken cancellationToken)
         {
             var list = this.Items;
-            var Result = await quik.Trading.GetParamEx2Bulk(list).ConfigureAwait(false);
+            var Result = await quik.Trading.GetParamEx2Bulk(list, cancellationToken).ConfigureAwait(false);
             GetParamEx2Bulk.ParseResult(list, Result);
         }
     }
@@ -91,25 +92,32 @@ namespace QUIKSharp.Helpers
 
         public void SetValue(ParamTable pt)
         {
-            var paramType = pt.Value.GetType();
-            var valueType = typeof(T);
             T new_value;
-
-            if (paramType.IsPrimitive || pt.Value != null)
+            var valueType = typeof(T);
+            var paramType = pt.Value?.GetType();
+            if ((paramType != null) || (pt.Value != null && paramType.IsPrimitive))
             {
                 if (valueType == paramType)
                     new_value = (T)pt.Value;
                 else
                 {
                     if (valueType.IsEnum)
-                        new_value = (T)Convert.ChangeType(pt.Value, typeof(Int32));
+                    {
+                        if (typeof(string).IsInstanceOfType(pt.Value))
+                            new_value = (T)Enum.Parse(valueType, (string)pt.Value);
+                        else
+                            new_value = (T)Convert.ChangeType(pt.Value, typeof(Int32));
+                    }
                     else
                         new_value = (T)Convert.ChangeType(pt.Value, valueType);
                 }
             }
             else
             {
-                new_value = (T)(valueType.IsPrimitive ? default : Activator.CreateInstance(valueType));
+                if (valueType.IsPrimitive)
+                    new_value = default(T);
+                else
+                    new_value = (T)Activator.CreateInstance(valueType);
             }
             this.Changed = !new_value.Equals(Value);
             if (this.Changed)

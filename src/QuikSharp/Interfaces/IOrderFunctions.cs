@@ -4,24 +4,25 @@
 using QUIKSharp.DataStructures;
 using QUIKSharp.DataStructures.Transaction;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace QUIKSharp
 {
     public interface IOrderFunctions
     {
-        Task<Order> GetOrder(string classCode, long orderId);
+        Task<Order> GetOrder(string classCode, long orderId, CancellationToken cancellationToken);
 
-        Task<List<Order>> GetOrders();
+        Task<List<Order>> GetOrders(CancellationToken cancellationToken);
 
-        Task<List<Order>> GetOrders(ISecurity sec);
+        Task<List<Order>> GetOrders(ISecurity sec, CancellationToken cancellationToken);
 
-        Task<Order> GetOrder_by_Number(long order_num);
+        Task<Order> GetOrder_by_Number(long order_num, CancellationToken cancellationToken);
 
-        Task<Order> GetOrder_by_transID(ISecurity sec, long trans_id);
+        Task<Order> GetOrder_by_transID(ISecurity sec, long trans_id, CancellationToken cancellationToken);
 
-        Task<List<StopOrder>> GetStopOrders();
+        Task<List<StopOrder>> GetStopOrders(CancellationToken cancellationToken);
 
-        Task<List<StopOrder>> GetStopOrders(ISecurity sec);
+        Task<List<StopOrder>> GetStopOrders(ISecurity sec, CancellationToken cancellationToken);
     }
 }

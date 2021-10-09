@@ -16,7 +16,6 @@ namespace QUIKSharp.DataStructures
         ///  STRING Торговая дата в виде строки «ДД.ММ.ГГГГ»
         /// </summary>
         [JsonProperty("date")]
-        //[JsonConverter(typeof(YYYYMMDD_DateTimeConverter))]
         public string DateStr { get; set; }
 
         /// <summary>

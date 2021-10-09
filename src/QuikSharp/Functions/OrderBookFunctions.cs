@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 using QUIKSharp.DataStructures;
 using QUIKSharp.Transport;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace QUIKSharp.Functions
@@ -14,22 +15,22 @@ namespace QUIKSharp.Functions
         /// <summary>
         /// Функция заказывает на сервер получение стакана по указанному классу и бумаге.
         /// </summary>
-        Task<bool> Subscribe(ISecurity security);
+        Task<bool> Subscribe(ISecurity security, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция отменяет заказ на получение с сервера стакана по указанному классу и бумаге.
         /// </summary>
-        Task<bool> Unsubscribe(ISecurity security);
+        Task<bool> Unsubscribe(ISecurity security, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция позволяет узнать, заказан ли с сервера стакан по указанному классу и бумаге.
         /// </summary>
-        Task<bool> IsSubscribed(ISecurity security);
+        Task<bool> IsSubscribed(ISecurity security, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция предназначена для получения стакана по указанному классу и инструменту
         /// </summary>
-        Task<OrderBook> GetQuoteLevel2(ISecurity security);
+        Task<OrderBook> GetQuoteLevel2(ISecurity security, CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -41,24 +42,24 @@ namespace QUIKSharp.Functions
         {
         }
 
-        public Task<bool> Subscribe(ISecurity security)
+        public Task<bool> Subscribe(ISecurity security, CancellationToken cancellationToken)
         {
-            return QuikService.SendAsync<bool>(new MessageS(new[] { security.ClassCode, security.SecCode }, "Subscribe_Level_II_Quotes"));
+            return QuikService.SendAsync<bool>(new MessageS(new[] { security.ClassCode, security.SecCode }, "Subscribe_Level_II_Quotes"), cancellationToken);
         }
 
-        public Task<bool> Unsubscribe(ISecurity security)
+        public Task<bool> Unsubscribe(ISecurity security, CancellationToken cancellationToken)
         {
-            return QuikService.SendAsync<bool>(new MessageS(new[] { security.ClassCode, security.SecCode }, "Unsubscribe_Level_II_Quotes"));
+            return QuikService.SendAsync<bool>(new MessageS(new[] { security.ClassCode, security.SecCode }, "Unsubscribe_Level_II_Quotes"), cancellationToken);
         }
 
-        public Task<bool> IsSubscribed(ISecurity security)
+        public Task<bool> IsSubscribed(ISecurity security, CancellationToken cancellationToken)
         {
-            return QuikService.SendAsync<bool>(new MessageS(new[] { security.ClassCode, security.SecCode }, "IsSubscribed_Level_II_Quotes"));
+            return QuikService.SendAsync<bool>(new MessageS(new[] { security.ClassCode, security.SecCode }, "IsSubscribed_Level_II_Quotes"), cancellationToken);
         }
 
-        public Task<OrderBook> GetQuoteLevel2(ISecurity security)
+        public Task<OrderBook> GetQuoteLevel2(ISecurity security, CancellationToken cancellationToken)
         {
-            return QuikService.SendAsync<OrderBook>(new MessageS(new[] { security.ClassCode, security.SecCode }, "GetQuoteLevel2"));
+            return QuikService.SendAsync<OrderBook>(new MessageS(new[] { security.ClassCode, security.SecCode }, "GetQuoteLevel2"), cancellationToken);
         }
     }
 }

@@ -16,11 +16,6 @@ namespace QUIKSharp.DataStructures.Transaction
     {
         // ReSharper disable InconsistentNaming
 
-        /// <summary>
-        /// Error message returned by sendTransaction
-        /// </summary>
-        public string ErrorMessage { get; set; }
-
         ///////////////////////////////////////////////////////////////////////////////
         ///
         ///  Transaction specification properties start here

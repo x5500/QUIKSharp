@@ -2,8 +2,6 @@
 // Based on QUIKSharp, Authors https://github.com/finsight/QUIKSharp/blob/master/AUTHORS.md.
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
-using HellBrick.Collections;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
 using QUIKSharp.Converters;
@@ -12,11 +10,11 @@ using QUIKSharp.DataStructures.Transaction;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -106,6 +104,11 @@ namespace QUIKSharp.Transport
         /// <param name="startCorrelationId">Стартовое значение.</param>
         internal static void InitializeCorrelationId(int startCorrelationId) => _correlationId = startCorrelationId;
 
+        public static void EnablePerfomanceLog(bool Enable)
+        {
+            RequestReplyState<JToken>.EnablePerfomanceLog = Enable;
+        }
+
         /// <summary>
         /// Создает экземпляр QuikService
         /// </summary>
@@ -128,6 +131,10 @@ namespace QUIKSharp.Transport
         /// Default timeout to use for send operations if no specific timeout supplied.
         /// </summary>
         public TimeSpan DefaultSendTimeout { get; set; } = new TimeSpan(0, 0, 0, 20, 0); // 20 sec.
+        /// <summary>
+        /// Read/Write Socket operations timeout, in msec.
+        /// </summary>
+        public int SocketOperationTimeout { get; set; } = 10000; // 10 sec.
 
         public QuikEvents Events { get; private set; }
 
@@ -158,28 +165,23 @@ namespace QUIKSharp.Transport
         /// <summary>
         /// IQuickCalls functions enqueue a message and return a task from TCS
         /// </summary>
-        private readonly AsyncQueue<IMessage> SendQueue = new AsyncQueue<IMessage>();
-
+        private readonly ConcurrentQueue<IMessage> SendQueue = new ConcurrentQueue<IMessage>();
+        private readonly ManualResetEventSlim SendQueue_Avail = new ManualResetEventSlim(false);
         /// <summary>
         /// If received message has a correlation id then use its Data to SetResult on TCS and remove the TCS from the dic
         /// </summary>
         private readonly ConcurrentDictionary<long, RequestReplyState<JToken>> Responses = new ConcurrentDictionary<long, RequestReplyState<JToken>>();
-
         /// <summary>
         /// Get network stats
         /// </summary>
-        /// <param name="bytes_sent">Bytes sent as Request</param>
-        /// <param name="bytes_recieved">Bytes recieved as Response</param>
-        /// <param name="bytes_callback">Bytes recieved as Callback</param>
-        /// <param name="request_query_size">Current length of the requests query waiting for response</param>
-        public void GetNetStats(out long bytes_sent, out long bytes_recieved, out long bytes_callback, out long request_query_size)
+        public void GetNetStats(out ServiceNetworkStats networkStats)
         {
-            bytes_sent = bytes_sent_request;
-            bytes_recieved = bytes_recieved_response;
-            bytes_callback = bytes_recieved_callback;
-            request_query_size = Responses.Count;
+            networkStats.bytes_sent = bytes_sent_request;
+            networkStats.bytes_recieved = bytes_recieved_response;
+            networkStats.bytes_callback = bytes_recieved_callback;
+            networkStats.requests_query_size = Responses.Count;
+            networkStats.send_query_size = SendQueue.Count;
         }
-
         // ----------------------------------- Async Workers ------------------------------------------------------------------------------
         /// <summary>
         /// Start Service
@@ -189,21 +191,17 @@ namespace QUIKSharp.Transport
         {
             if (IsStarted) return;
             IsStarted = true;
-
             StopAllCancellation = new CancellationTokenSource();
 
             // NB we use the token for signalling, could use a simple TCS
             var task_options = TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach | TaskCreationOptions.PreferFairness;
-
             // Request Task
-            _requestTask = Task.Factory.StartNew(RequestTaskAction, CancellationToken.None, task_options, TaskScheduler.Default);
-
+            _requestTask = Task.Factory.StartNew(() => Socket_Main_Loop(SendTaskLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
             // Response Task
-            _responseTask = Task.Factory.StartNew(ResponseTaskAction, CancellationToken.None, task_options, TaskScheduler.Default);
-
+            _responseTask = Task.Factory.StartNew(() => Socket_Main_Loop(ResponseTaskLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
             // Callback Task
             if (_callbackPort != 0)
-                _callbackReceiverTask = Task.Factory.StartNew(CallbackTaskAction, CancellationToken.None, task_options, TaskScheduler.Default);
+                _callbackReceiverTask = Task.Factory.StartNew(() => Socket_Main_Loop(CallbackTaskLoop), CancellationToken.None, task_options, TaskScheduler.Default);
             else
                 _callbackReceiverTask = Task.CompletedTask;
         }
@@ -214,27 +212,23 @@ namespace QUIKSharp.Transport
         {
             if (!IsStarted) return;
             IsStarted = false;
+
+            // cancel all service tasks
+            // cancel responses to release waiters            
             StopAllCancellation.Cancel();
 
-            try
-            {
-                // here all tasks must exit gracefully
-                var isCleanExit = Task.WaitAll(new[] { _requestTask, _responseTask, _callbackReceiverTask }, 5000);
-                if (!isCleanExit)
-                    logger.Error("All tasks must finish gracefully after cancellation token is cancelled!");
-            }
-            finally
-            {
-                // cancel responses to release waiters
-                foreach (var responseKey in Responses.Keys.ToList())
-                {
-                    if (Responses.TryRemove(responseKey, out var responseInfo))
-                        responseInfo.TrySetCanceled();
-                }
-            }
+            ReleaseSocket(ref _responseClient);
+            ReleaseSocket(ref _callbackClient);
+
+            // here all tasks must exit gracefully
+            var timeout = SocketOperationTimeout + 5000;
+            var isCleanExit = Task.WaitAll(new[] { _requestTask, _responseTask, _callbackReceiverTask }, timeout);
+            if (!isCleanExit)
+                logger.Error("All tasks must finish gracefully after cancellation token is cancelled!");
         }
 
-        private async Task RequestTaskAction()
+        private delegate void InnerSocketLoop(CancellationToken cancelToken);        
+        private void Socket_Main_Loop(InnerSocketLoop taskAction)
         {
             var cancelToken = StopAllCancellation.Token;
             try
@@ -242,287 +236,311 @@ namespace QUIKSharp.Transport
                 // Enter the listening loop.
                 while (!cancelToken.IsCancellationRequested)
                 {
-                    await EnsureConnectedClient(cancelToken).ConfigureAwait(false);
+                    EnsureConnectedClient(cancelToken);
+                    if (cancelToken.IsCancellationRequested) break;
                     // here we have a connected TCP client
-                    ResetToQueryAllWaitingMessages();
-
-                    try
-                    {
-                        var stream = new NetworkStream(_responseClient.Client);
-                        var writer = new StreamWriter(stream);
-
-                        while (!cancelToken.IsCancellationRequested)
-                        {
-                            IMessage message = await SendQueue.TakeAsync(cancelToken).ConfigureAwait(false);
-                            try
-                            {
-                                //Trace.WriteLine("Request: " + request);
-                                // scenario: Quik is restarted or script is stopped
-                                // then writer must throw and we will add a message back
-                                // then we will iterate over messages and cancel expired ones
-                                if (!message.ValidUntil.HasValue || message.ValidUntil >= DateTime.UtcNow)
-                                {
-                                    var request = message.ToJson();
-                                    await writer.WriteLineAsync(request).ConfigureAwait(false);
-                                    Interlocked.Add(ref bytes_sent_request, request.Length);
-                                    if (!SendQueue.Any())
-                                        await writer.FlushAsync().ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    if (message.Id == 0 && logger.IsDebugEnabled)
-                                        logger.Debug("Got Request in SendQueue with id=0. All requests must have correlation id");
-
-                                    if (Responses.TryRemove(message.Id, out var tcs))
-                                    {
-                                        tcs.SetException(new TimeoutException("ValidUntilUTC is less than current time"));
-#if TRACE_QUERY
-                                        if (logger.IsTraceEnabled)
-                                            logger.Trace($"Removed message(Id:{message.Id}) from Responses queue, reason: expired.");
-#endif
-                                    }
-                                }
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                // SendQueue.Take(_cts.Token) was cancelled via the token
-                            }
-                            catch (IOException e)
-                            {
-                                logger.Warn(e, $"IOException in _requestTask (Lost connection?): {e.Message}");
-                                // this catch is for unexpected and unchecked connection termination
-                                // add back, there was an error while writing
-                                if (message != null)
-                                    SendQueue.Add(message);
-                                break;
-                            }
-                        }
-                    }
-                    catch (IOException e)
-                    {
-                        logger.Error(e, $"IOException in _requestTask: {e.Message}");
-                    }
+                    taskAction(cancelToken);
                 }
             }
             catch (OperationCanceledException)
             {
-                logger.ConditionalTrace("_requestTask is cancelling");
+                logger.ConditionalTrace("RequestTaskAction is cancelling");
             }
             catch (Exception e)
             {
-                logger.Fatal(e, $"Unhandled exception in _requestTask: {e.Message}");
+                var name = taskAction.GetMethodInfo().Name;
+                logger.Fatal(e, $"Unhandled exception in taskAction '{name}' : {e.Message}");
                 StopAllCancellation.Cancel();
-                throw new AggregateException("Unhandled exception in _requestTask", e);
-            }
-            finally
-            {
-                await Close_RequestReplyClientSocket().ConfigureAwait(false);
+                throw new AggregateException($"Unhandled exception in taskAction '{name}'", e);
             }
         }
-        private async Task ResponseTaskAction()
+        private static bool ProcessIOException(IOException ioe, string func_name)
         {
-            var cancelToken = StopAllCancellation.Token;
-            try
+            var ex = (ioe.InnerException != null) ? ioe.InnerException : ioe;
+            var ext = ex.GetType();
+            if (typeof(SocketException).IsAssignableFrom(ext))
             {
-                while (!cancelToken.IsCancellationRequested)
+                var se = (SocketException)ex;
+                switch (se.SocketErrorCode)
                 {
-                    // Поток Response использует тот же сокет, что и поток request
-                    await EnsureConnectedClient(cancelToken).ConfigureAwait(false);
-                    // here we have a connected TCP client
-                    try
-                    {
-                        var stream = new NetworkStream(_responseClient.Client);
-                        var reader = new StreamReader(stream, encoding); //true
-                        string response = null;
-                        while (!cancelToken.IsCancellationRequested && (response = await reader.ReadLineAsync().ConfigureAwait(false)) != null)
-                        {
-                            // No IO exceptions possible for response, move its processing
-                            // to the threadpool and wait for the next mesaage
-                            // A new task here gives c.30% boost for full TransactionSpec echo
-                            try
-                            {
-                                //Deserialize into a JObject
-                                JToken token = JObject.Parse(response);
-                                long message_id = (long)token.SelectToken("id");
-                                if (message_id <= 0)
-                                    throw new Exception("ResponseTaskAction: Error: message_id less or equal 0.");
-
-                                // it is a response message                                    
-                                if (Responses.TryRemove(message_id, out var tcs))
-                                {
-#if TRACE_QUERY
-                                    if (logger.IsTraceEnabled)
-                                        logger.Trace($"ResponseTaskAction: Removed message(Id:{message_id}) from Responses queue, Got answer.");
-#endif
-                                    tcs.SetResult(token);
-                                }
-                                else
-                                {
-                                    logger.ConditionalTrace($"No Response is waiting for message with Id:{message_id}");
-                                }
-                            }
-                            catch (Exception e) // deserialization exception is possible
-                            {
-                                logger.Error(e, $"ResponseTaskAction: Exception: {e.Message}");
-                                logger.Error("Response JSON: " + response);
-                            }
-
-                            Interlocked.Add(ref bytes_recieved_response, response.Length);
-                        }
-                    }
-                    catch (IOException e)
-                    {
-                        logger.Error(e, "IOException in ResponseTaskAction: Connection lost?");
-                    }
+                    case SocketError.ConnectionReset:
+                    case SocketError.ConnectionAborted:
+                        break;
+                    case SocketError.TimedOut:
+                        return true;
+                    default:
+                        logger.Error(se, $"SocketException in {func_name}, SocketError: '{se.SocketErrorCode}'");
+                        break;
                 }
             }
-            catch (OperationCanceledException)
+            else
             {
-                logger.ConditionalTrace("ResponseTaskAction: Response task is cancelling");
+                bool disposed = typeof(ObjectDisposedException).IsAssignableFrom(ext);
+                if (!disposed)
+                    logger.Error(ex, $"IOException in {func_name}: '{ex.Message}'. Connection lost?");
             }
-            catch (Exception e)
-            {
-                logger.Fatal(e, $"Unhandled exception in ResponseTaskAction: {e.Message}");
-                StopAllCancellation.Cancel();
-                throw new AggregateException("Unhandled exception in ResponseTaskAction", e);
-            }
-            finally
-            {
-                await Close_RequestReplyClientSocket().ConfigureAwait(false);
-            }
+            return false;
         }
-        private async Task CallbackTaskAction()
+        private void SendTaskLoop(CancellationToken cancelToken)
         {
-            var cancelToken = StopAllCancellation.Token;
-            try
-            {
-                // reconnection loop
-                while (!cancelToken.IsCancellationRequested)
-                {
-                    await EnsureConnectedClient(cancelToken).ConfigureAwait(false);
-                    // now we are connected
-                    // here we have a connected TCP client
-                    try
-                    {
-                        var stream = new NetworkStream(_callbackClient.Client);
-                        var reader = new StreamReader(stream, encoding); //true
-                        string callback = null;
-                        while (!cancelToken.IsCancellationRequested && (callback = await reader.ReadLineAsync().ConfigureAwait(false)) != null)
-                        {
-                            try
-                            {
-                                // it is a callback message
-                                ProcessCallbackMessage(callback);
-                            }
-                            catch (Exception e) // deserialization exception is possible
-                            {
-                                logger.Error(e, $"Exception in 'CallbackTaskAction': {e.Message}");
-                                logger.Error("Recieved JSON: " + callback);
-                            }
+            ResetToQueryAllWaitingMessages();
 
-                            Interlocked.Add(ref bytes_recieved_callback, callback.Length);
-                        }
-                    }
-                    catch (IOException e)
-                    {
-                        logger.Error(e, "IOExceptioon in CallbackTaskAction: Lost connection?");
-                        // handled exception will cause reconnect in the outer loop
-                    }
+            var stream = new NetworkStream(_responseClient.Client);
+            stream.WriteTimeout = SocketOperationTimeout;
+            var writer = new StreamWriter(stream);
+            while (!cancelToken.IsCancellationRequested)
+            {
+                IMessage message;
+                if (!SendQueue.TryDequeue(out message))
+                {
+                    SendQueue_Avail.Reset();
+                    SendQueue_Avail.Wait(cancelToken);
+                    continue;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                logger.ConditionalTrace("Callback task is cancelling");
-            }
-            catch (Exception e)
-            {
-                logger.Fatal(e, $"Unhandled exception in _callbackReceiverTask: {e.Message}");
-                StopAllCancellation.Cancel();
-                throw new AggregateException("Unhandled exception in background task", e);
-            }
-            finally
-            {
-                await _syncRoot.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    if (_callbackClient != null)
+                    if (message.Id == 0)
                     {
-                        try
-                        {
-                            _callbackClient.Client?.Shutdown(SocketShutdown.Both);
-                        }
-                        finally
-                        {
-                            _callbackClient.Client?.Close();
-                            _callbackClient.Close();
-                            _callbackClient = null;
-                        }
-                        logger.ConditionalTrace("Callback channel disconnected");
+                        if (logger.IsDebugEnabled)
+                            logger.Debug("SendTaskLoop: Got Request in SendQueue with id=0. All requests must have correlation id");
+                        continue;
                     }
+
+                    // Request(task) can be cancelled => not waiting for response.
+                    if (!Responses.TryGetValue(message.Id, out var tcs))
+                        continue;
+
+                    // Trace.WriteLine("Request: " + request);
+                    // scenario: Quik is restarted or script is stopped
+                    // then writer must throw and we will add a message back
+                    // then we will iterate over messages and cancel expired ones
+                    if (message.ValidUntil.HasValue && message.ValidUntil < DateTime.UtcNow)
+                    {
+                        tcs.SetException(new TimeoutException("SendTaskLoop: ValidUntilUTC is less than current time"));
+                        continue;
+                    }
+
+                    var request = message.ToJson();
+                    writer.WriteLine(request);
+                    if (!SendQueue.Any()) writer.Flush();
+                    Interlocked.Add(ref bytes_sent_request, request.Length);
                 }
-                finally
+                catch (IOException ioe)
                 {
-                    _syncRoot.Release();
+                    if (message != null)
+                        AddToQueue(message);
+
+                    ProcessIOException(ioe, "SendTaskLoop");
+                    break;
                 }
             }
         }
-
-        // ----------------------- TCP Socket functions -------------------------------------------------------------------------------------------
-        private static bool IsConnectedTCP(TcpClient tcp_client) => tcp_client != null && tcp_client.Connected && tcp_client.Client.IsConnectedNow();
-        public bool IsServiceConnected() => IsConnectedTCP(_responseClient) && (_callbackPort == 0 || IsConnectedTCP(_callbackClient));
-        private async Task Close_RequestReplyClientSocket()
+        private void ResponseTaskLoop(CancellationToken cancelToken)
         {
-            await _syncRoot.WaitAsync().ConfigureAwait(false);
-            try
+            // here we have a connected TCP client
+            var stream = new NetworkStream(_responseClient.Client);
+            stream.ReadTimeout = SocketOperationTimeout;
+            var reader = new StreamReader(stream, encoding); //true
+            while (!cancelToken.IsCancellationRequested)
             {
-                if (_responseClient != null)
+                try
                 {
+                    string response;
+                    response = reader.ReadLine();
+                    if (response == null) break;
+                    // No IO exceptions possible for response, move its processing
+                    // to the threadpool and wait for the next mesaage
+                    // A new task here gives c.30% boost for full TransactionSpec echo
                     try
                     {
-                        _responseClient.Client?.Shutdown(SocketShutdown.Both);
+                        //Deserialize into a JObject
+                        JToken token = JObject.Parse(response);
+                        long message_id = (long)token.SelectToken("id");
+                        if (message_id <= 0)
+                            throw new Exception("ResponseTaskLoop: Error: message_id less or equal 0.");
+
+                        // it is a response message                                    
+                        if (Responses.TryRemove(message_id, out var tcs))
+                            tcs.SetResult(token);
+                        else
+                        if (logger.IsTraceEnabled)
+                            logger.Trace($"No Response is waiting for message with Id:{message_id}");
                     }
-                    finally
+                    catch (Exception e) // deserialization exception is possible
                     {
-                        _responseClient.Client?.Close();
-                        _responseClient.Close();
-                        _responseClient.Dispose();
-                        _responseClient = null; // У нас два потока работают с одним сокетом, но только один из них должен его закрыть !
-                        logger.ConditionalTrace("Request/Response channel disconnected");
-                    };
+                        logger.Error(e, $"ResponseTaskLoop: Exception: {e.Message}");
+                        logger.Error("Response JSON: " + response);
+                    }
+                    Interlocked.Add(ref bytes_recieved_response, response.Length);
+                }
+                catch (IOException ioe)
+                {
+                    if (ProcessIOException(ioe, "ResponseTaskLoop"))
+                        continue;
+                    else
+                        break;
                 }
             }
-            catch (Exception e)
+        }
+        private void CallbackTaskLoop(CancellationToken cancelToken)
+        {
+            // here we have a connected TCP client
+            var stream = new NetworkStream(_callbackClient.Client);
+            stream.ReadTimeout = SocketOperationTimeout;
+            var reader = new StreamReader(stream, encoding); //true
+            while (!cancelToken.IsCancellationRequested)
             {
-                logger.Fatal(e, $"Unhandled exception while close _responseClient socket: {e.Message}");
+                try
+                {
+                    string callback;
+                    callback = reader.ReadLine();
+                    if (callback == null) break;
+                    try
+                    {
+                        ProcessCallbackMessage(callback);
+                    }
+                    catch (Exception e) // deserialization exception is possible
+                    {
+                        logger.Error(e, $"Exception in 'CallbackTaskLoop': {e.Message}");
+                        logger.Error("Recieved JSON: " + callback);
+                    }
+                    Interlocked.Add(ref bytes_recieved_callback, callback.Length);
+                }
+                catch (IOException ioe)
+                {
+                    if (ProcessIOException(ioe, "CallbackTaskLoop"))
+                        continue;
+                    else
+                        break;
+                }
+            }
+        }
+        // ----------------------- TCP Socket functions -------------------------------------------------------------------------------------------
+        private static bool IsConnectedTCP(TcpClient tcp_client) => (tcp_client != null) && tcp_client.Connected && tcp_client.Client.Connected && tcp_client.Client.IsConnectedNow();
+        public bool IsServiceConnected() => IsConnectedTCP(_responseClient) && (_callbackPort == 0 || IsConnectedTCP(_callbackClient));
+        private void ReleaseSocket(ref TcpClient tcpClient)
+        {
+            _syncRoot.Wait();
+            try
+            {
+                ReleaseSocketNoLock(ref tcpClient);
             }
             finally
             {
                 _syncRoot.Release();
             }
         }
-        private static void NewTCPSocket(ref TcpClient tcp_client)
+        private static void ReleaseSocketNoLock(ref TcpClient tcpClient)
         {
-            if (tcp_client != null)
+            if (tcpClient != null)
             { // cleanup
                 try
                 {
-                    tcp_client.Client?.Shutdown(SocketShutdown.Both);
+                    if (tcpClient.Connected || (tcpClient.Client?.Connected ?? false))
+                        tcpClient.Client?.Shutdown(SocketShutdown.Both);
                 }
                 finally
                 {
-                    tcp_client.Client?.Close();
-                    tcp_client.Close();
-                    tcp_client.Dispose();
+                    tcpClient.Client?.Close();
+                    tcpClient.Close();
+                    tcpClient.Dispose();
                 }
+                tcpClient = null;
             }
-            tcp_client = new TcpClient
+        }
+        private static void NewTCPSocket(ref TcpClient tcpClient)
+        {
+            ReleaseSocketNoLock(ref tcpClient);
+            tcpClient = new TcpClient
             {
                 ExclusiveAddressUse = true,
                 NoDelay = true,
                 LingerState = new LingerOption(false, 0),
             };
         }
-        private async Task EnsureConnectedClient(CancellationToken ct)
+        private void EnsureConnectedClient(CancellationToken ct)
+        {
+            if (IsServiceConnected()) return;
+            bool call_events = false;
+            try
+            {
+                _syncRoot.Wait(ct);
+                if (_connectedMre.isSet && !IsServiceConnected())
+                {
+                    _connectedMre.Reset();
+                    Events.OnDisconnectedFromQuikCall();
+                }
+                while (!IsServiceConnected())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    try
+                    {
+                        if (!IsConnectedTCP(_responseClient))
+                        {
+                            NewTCPSocket(ref _responseClient);
+                            logger.ConditionalTrace("Connecting on request/response channel... ");
+                            _responseClient.Connect(_ipaddress, _responsePort);
+                            logger.ConditionalTrace($"Request/response channel connected to '{_ipaddress}:{_responsePort}");
+                        }
+
+                        if (_callbackPort != 0 && !IsConnectedTCP(_callbackClient))
+                        {
+                            NewTCPSocket(ref _callbackClient);
+                            logger.ConditionalTrace("Connecting on request/response channel... ");
+                            _callbackClient.Connect(_ipaddress, _callbackPort);
+                            logger.ConditionalTrace($"Request/response channel connected to '{_ipaddress}:{_callbackPort}");
+                        }
+                    }
+                    catch (SocketException ex)
+                    {
+                        switch (ex.SocketErrorCode)
+                        {
+                            case SocketError.ConnectionRefused:
+                                break;
+                            default:
+                                logger.Error(ex, $"SocketException while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {ex.Message}");
+                            break;
+                        }
+                        Task.Delay(100, ct).Wait(ct);
+                    }
+                    catch (Exception exc)
+                    {
+                        var ex = (exc.InnerException != null) ? exc.InnerException : exc;
+                        logger.Error(ex, $"Exception while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {ex.Message}");
+                        Task.Delay(100, ct).Wait(ct);
+                    }
+                }
+                if (_connectedMre.isWaiting)
+                {
+                    _connectedMre.Set();
+                    // Оповещаем клиента что произошло подключение к Quik'у
+                    call_events = true;
+                }
+            }
+            finally
+            {
+                _syncRoot.Release();
+            }
+            if (call_events)
+                _ = Task.Run(InvokeOnConnectedEvent, ct);
+        }
+        private void InvokeOnConnectedEvent()
+        {
+            try
+            {
+                Events.OnConnectedToQuikCall(_responsePort);
+            }
+            catch (TargetInvocationException tie)
+            {
+                var e = tie.InnerException; // ex now stores the original exception
+                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['ConnectedToQuik'].Invoke():  {e.Message}");
+            }
+            catch (Exception e)
+            {
+                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['ConnectedToQuik'].Invoke():  {e.Message}");
+            }
+        }
+        private async Task EnsureConnectedClientAsync(CancellationToken ct)
         {
             await _syncRoot.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -563,11 +581,19 @@ namespace QUIKSharp.Transport
                                     logger.ConditionalTrace($"Callback channel connected to '{_args.Item1}:{_args.Item2}'");
                                 }, new Tuple<IPAddress, int>(_ipaddress, _callbackPort), ct, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
                         }
-                        Task.WaitAll(new Task[] { task1, task2 }, cancellationToken: ct);
+                        Task[] tasks = { task1, task2 };
+                        Task.WaitAll(tasks, cancellationToken: ct);
+                    }
+                    catch (SocketException ex) 
+                    {
+                        logger.Error(ex, $"SocketException while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {ex.Message}");
+                        await Task.Delay(100, ct).ConfigureAwait(false);
                     }
                     catch (Exception exc)
                     {
-                        logger.Error(exc, $"Exception while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {exc.Message}");
+                        var ex = (exc.InnerException != null) ? exc.InnerException : exc;
+                        if (!typeof(TaskCanceledException).IsAssignableFrom(ex.GetType()))
+                            logger.Error(ex, $"Exception while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {ex.Message}");
                         await Task.Delay(100, ct).ConfigureAwait(false);
                     }
                 }
@@ -584,8 +610,6 @@ namespace QUIKSharp.Transport
                 _syncRoot.Release();
             }
         }
-
-
         // --------------------- Query, Request/Reply processing ------------------------------------------------------------------------------------
         /// <summary>
         /// Повторно отправляем запросы, которых нет в очереди на отправку
@@ -599,7 +623,7 @@ namespace QUIKSharp.Transport
                 {
                     if (rr.request.ValidUntil.HasValue || rr.request.ValidUntil <= DateTime.UtcNow)
                         continue;
-                    SendQueue.Add(rr.request);
+                    AddToQueue(rr.request);
                 }
         }
         private void ProcessCallbackMessage(string callback)
@@ -612,7 +636,6 @@ namespace QUIKSharp.Transport
             var parsed = Enum.TryParse<EventNames>(command, true, out var eventName);
             if (!parsed)
                 throw new InvalidOperationException("ProcessCallbackMessage: Unknown command in a message: " + command);
-
             try
             {
                 switch (eventName)
@@ -704,72 +727,41 @@ namespace QUIKSharp.Transport
                         throw new ArgumentOutOfRangeException("eventName", eventName, "Invalid event name or such event was not implemented");
                 }
             }
+            catch (ArgumentOutOfRangeException)
+            {
+                throw;
+            }
+            catch (TargetInvocationException tie)
+            {
+                var e = tie.InnerException; // ex now stores the original exception
+                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{eventName}'].Invoke():  {e.Message}");
+            }
             catch (Exception e)
             {
-                logger.Error(e, $"Exception in ProcessCallbackMessage wile call for Event/Invoke '{eventName}':  {e.Message}");
+                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{eventName}'].Invoke():  {e.Message}");
             }
         }
-        public async Task<TResult> SendAsync<TResult>(IMessage request, int timeout_ms = 0)
+        public Task<TResult> SendAsync<TResult>(IMessage request) => SendAsync<TResult>(request, CancellationToken.None);
+        public async Task<TResult> SendAsync<TResult>(IMessage request, CancellationToken task_cancel)
         {
-            // use DefaultSendTimeout for default calls
-            if (timeout_ms == 0)
-                timeout_ms = (int)DefaultSendTimeout.TotalMilliseconds;
-
-            if (!_connectedMre.isSet)
-            {
-                if (timeout_ms > 0)
-                {
-                    var task = Task.Delay(timeout_ms);
-                    if (await Task.WhenAny(_connectedMre.WaitAsync, task).ConfigureAwait(false) == task)
-                    {
-                        // timeout
-                        throw new TimeoutException("Send operation timed out wait for Connection");
-                    }
-                }
-                else
-                {
-                    await _connectedMre.WaitAsync.ConfigureAwait(false);
-                }
-                if (StopAllCancellation.IsCancellationRequested)
-                    throw new OperationCanceledException("Service stopped!", StopAllCancellation.Token);
-            }
+            var service_stop = StopAllCancellation.Token;
+            CancellationTokenSource _cts = CancellationTokenSource.CreateLinkedTokenSource(task_cancel, service_stop);
+            if (DefaultSendTimeout.Milliseconds > 0)
+                _cts.CancelAfter(DefaultSendTimeout);
 
             if (request.Id <= 0)
                 request.Id = GetNewUniqueId();
 
             var responseType = typeof(Message<TResult>);
-            var rr = new RequestReplyState<JToken>(request, responseType);
+            var rr = new RequestReplyState<JToken>(request, responseType, _cts.Token);
             Responses[request.Id] = rr;
-#if TRACE_QUERY
-            if (logger.IsTraceEnabled)
-                logger.Trace($"Added request message(Id:{request.Id}) to Responses queue.");
-#endif
             // add to queue after responses dictionary
-            SendQueue.Add(request);
-
-            CancellationTokenSource cts = new CancellationTokenSource();
-            if (timeout_ms > 0)
-            {
-                cts.CancelAfter(timeout_ms);
-                cts.Token.Register((_rr) =>
-                {
-                    var rrState = _rr as RequestReplyState<JToken>;
-                    if (rrState.SetException(new TimeoutException("Send operation timed out")))
-                    {
-                        long id = (_rr as RequestReplyState<JToken>).request.Id;
-                        Responses.TryRemove(id, out var temp);
-#if TRACE_QUERY
-                        if (logger.IsTraceEnabled)
-                            logger.Trace($"Removed request message(Id:{id}, cmd:{request.Command}) from Responses queue, reason: Send operation timed out.");
-#endif
-                    }
-                }, rr, useSynchronizationContext: false);
-            }
-
+            AddToQueue(request);
             try
             {
+
                 JToken jtoken = await rr.ResultTask.ConfigureAwait(false);
-                string command = (string)jtoken.SelectToken("cmd");
+                var command = (string)jtoken.SelectToken("cmd");
                 ProcessMessageForLuaError(jtoken, command);
                 var response = jtoken.FromJToken(responseType) as IMessage;
                 if (response.ValidUntil.HasValue && response.ValidUntil < DateTime.UtcNow)
@@ -778,44 +770,52 @@ namespace QUIKSharp.Transport
                     throw new Exception($"SendAsync: Fatal exception: response.Command[{response.Command}] != request.command[{request.Command}]");
                 return (TResult)response.Data;
             }
+            catch (OperationCanceledException e)
+            {
+                if (task_cancel.IsCancellationRequested)
+                    throw new OperationCanceledException("Operation cancelled.", e);
+                if (service_stop.IsCancellationRequested)
+                    throw new OperationCanceledException("Service stopped!", e);
+                else
+                    throw new TimeoutException("Send operation timed out", e);
+            }
+            catch (TimeoutException)
+            {
+                throw;
+            }
+            catch (LuaException)
+            {
+                throw;
+            }
             catch (Exception e) // deserialization exception is possible
             {
-                logger.Error(e, $"Exception in 'SendAsync - Process response': {e.Message}");
+                logger.Error(e, $"Exception in 'SendAsync, processing response': {e.Message}");
                 throw;
             }
             finally
             {
-                if (Responses.TryRemove(request.Id, out var temp))
-                {
-#if TRACE_QUERY
-                    if (logger.IsTraceEnabled)
-                        logger.Trace($"Finally removed request message(id:{request.Id}) from Responses queue");
-#endif
-                }
+                Responses.TryRemove(request.Id, out var temp);
+                if (_cts != null)
+                    _cts.Dispose();
             }
         }
-        private void ProcessMessageForLuaError(JToken jtoken, string cmd)
+        private void AddToQueue(IMessage request)
+        {
+            SendQueue.Enqueue(request);
+            SendQueue_Avail.Set();
+        }
+        private static void ProcessMessageForLuaError(JToken jtoken, string cmd)
         {
             var lua_error = (string)jtoken.SelectToken("lua_error");
             if (!string.IsNullOrEmpty(lua_error))
-            {
-                LuaException exn = string.Compare(cmd, "lua_transaction_error") == 0 ? new TransactionException(lua_error) : new LuaException(lua_error);
-                logger.Error($" LUA Error [{cmd}]: {lua_error}");
-                // terminate listener task that was processing this task
-
-                long? id = (long?)jtoken.SelectToken("id");
-                if (id.HasValue && Responses.TryGetValue(id.Value, out var rRState))
-                    rRState.SetException(exn);
+                if (string.Compare(cmd, "lua_transaction_error") == 0)
+                    throw new TransactionException(lua_error);
                 else
-                    throw exn;
-            }
+                    throw new LuaException(lua_error);
+
             if (string.IsNullOrEmpty(cmd))
-            {
                 throw new ArgumentException("Bad message format: no cmd or lua_error fields");
-            }
-
         }
-
         // ---------------------------------------------------------------------------------------------------
         private bool disposedValue;
         private void Dispose(bool disposing)
@@ -829,20 +829,13 @@ namespace QUIKSharp.Transport
                     _requestTask = null;
                     _responseTask = null;
                     _callbackReceiverTask = null;
+                    SendQueue_Avail.Dispose();
                 }
                 // TODO: освободить неуправляемые ресурсы (неуправляемые объекты) и переопределить метод завершения
                 // TODO: установить значение NULL для больших полей
                 disposedValue = true;
             }
         }
-
-        // // TODO: переопределить метод завершения, только если "Dispose(bool disposing)" содержит код для освобождения неуправляемых ресурсов
-        // ~QuikService()
-        // {
-        //     // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
-        //     Dispose(disposing: false);
-        // }
-
         void IDisposable.Dispose()
         {
             // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".

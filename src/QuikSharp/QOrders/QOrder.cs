@@ -305,6 +305,8 @@ namespace QUIKSharp.QOrders
                 case QOrderState.RequestedMove:
                     switch (new_state)
                     {   // Immune: Allowed only:
+                        case QOrderState.WaitMove:
+                        case QOrderState.RequestedMove:
                         case QOrderState.ErrorRejected:
                         case QOrderState.Placed:
                             break;

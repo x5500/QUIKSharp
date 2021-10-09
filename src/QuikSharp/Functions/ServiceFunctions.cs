@@ -19,22 +19,23 @@ namespace QUIKSharp.Functions
         {
         }
 
-        public Task<string> GetWorkingFolder()
-        => QuikService.SendAsync<string>(new Message<string>("", "getWorkingFolder"));
+        public Task<string> GetWorkingFolder(CancellationToken cancellationToken)
+        => QuikService.SendAsync<string>(new Message<string>("", "getWorkingFolder"), cancellationToken);
 
-        public async Task<bool> IsConnected(int timeout = Timeout.Infinite)
+        public async Task<bool> IsConnected(CancellationToken cancellationToken)
         {
-            var response = await QuikService.SendAsync<string>(new Message<string>("", "isConnected"), timeout).ConfigureAwait(false);
-            return response == "1";
+            // Optimizing for acommon case: no async machinery involved.
+            var result = await QuikService.SendAsync<string>(new Message<string>("", "isConnected"), cancellationToken).ConfigureAwait(false);
+            return (result == "1");
         }
 
-        public Task<string> GetScriptPath()
-        => QuikService.SendAsync<string>(new Message<string>("", "getScriptPath"));
+        public Task<string> GetScriptPath(CancellationToken cancellationToken)
+        => QuikService.SendAsync<string>(new Message<string>("", "getScriptPath"), cancellationToken);
 
-        public Task<string> GetInfoParam(InfoParams param)
-        => QuikService.SendAsync<string>(new Message<string>(param.ToString(), "getInfoParam"));
+        public Task<string> GetInfoParam(InfoParams param, CancellationToken cancellationToken)
+        => QuikService.SendAsync<string>(new Message<string>(param.ToString(), "getInfoParam"), cancellationToken);
 
-        public Task<string> Message(string message, NotificationType iconType = NotificationType.Info)
+        public Task<string> Message(string message, NotificationType iconType, CancellationToken cancellationToken)
         {
             string cmd;
             switch (iconType)
@@ -57,54 +58,33 @@ namespace QUIKSharp.Functions
             return QuikService.SendAsync<string>(new Message<string>(message, cmd));
         }
 
-        public Task<string> PrintDbgStr(string message)
-        => QuikService.SendAsync<string>(new Message<string>(message, "PrintDbgStr"));
+        public Task<string> PrintDbgStr(string message, CancellationToken cancellationToken)
+        => QuikService.SendAsync<string>(new Message<string>(message, "PrintDbgStr"), cancellationToken);
 
-        public async Task<long> AddLabel(double price, string curDate, string curTime, string hint, string path, string tag, string alignment, double backgnd)
-        {
-            var response = await QuikService.SendAsync<string>(new MessageS(new string[] { price.ToString(), curDate, curTime, hint, path, tag, alignment, backgnd.ToString() }, "addLabel")).ConfigureAwait(false);
-            return Number<long>.FromString(response);
-        }
-
-        public async Task<long> AddLabel(string chartTag, decimal yValue, string strDate, string strTime, string text, string imagePath,
-            string alignment, string hint, int r, int g, int b, int transparency, int tranBackgrnd, string fontName, int fontHeight)
-        {
-            var msg = new MessageS(new string[] { chartTag, yValue.ToString(), strDate, strTime, text, imagePath, alignment, hint,
-                                            r.ToString(), g.ToString(), b.ToString(), transparency.ToString(), tranBackgrnd.ToString(),
-                                            fontName, fontHeight.ToString()}, "addLabel2");
-            var response = await QuikService.SendAsync<string>(msg).ConfigureAwait(false);
-            return Number<long>.FromString(response);
-        }
-
-        public async Task<long> AddLabel(string chartTag, Label label_params)
+        public async Task<long> AddLabel(string chartTag, Label label_params, CancellationToken cancellationToken)
         {
             var msg = new MessageS(new string[] { chartTag, label_params.ToMsg() }, "addLabel2");
-            var response = await QuikService.SendAsync<string>(msg).ConfigureAwait(false);
+            var response = await QuikService.SendAsync<string>(msg, cancellationToken).ConfigureAwait(false);
             return Number<long>.FromString(response);
         }
 
-        public Task<bool> SetLabelParams(string chartTag, long labelId, decimal yValue, string strDate, string strTime, string text, string imagePath,
-            string alignment, string hint, int r, int g, int b, int transparency, int tranBackgrnd, string fontName, int fontHeight)
-        => QuikService.SendAsync<bool>(new MessageS(new string[] { chartTag, labelId.ToString(), yValue.ToString(), strDate, strTime, text, imagePath, alignment, hint, r.ToString(), g.ToString(), b.ToString(), transparency.ToString(), tranBackgrnd.ToString(), fontName, fontHeight.ToString() }, "setLabelParams"));
+        public Task<bool> SetLabelParams(string chartTag, long labelId, Label label_params, CancellationToken cancellationToken)
+        => QuikService.SendAsync<bool>(new MessageS(new string[] { chartTag, labelId.ToString(), label_params.ToMsg() }, "setLabelParams"), cancellationToken);
 
-        public Task<bool> SetLabelParams(string chartTag, long labelId, Label label_params)
-        => QuikService.SendAsync<bool>(new MessageS(new string[] { chartTag, labelId.ToString(), label_params.ToMsg() }, "setLabelParams"));
+        public Task<Label> GetLabelParams(string chartTag, long labelId, CancellationToken cancellationToken) => QuikService.SendAsync<Label>(new MessageS(new string[] { chartTag, labelId.ToString() }, "getLabelParams"), cancellationToken);
 
-        public Task<Label> GetLabelParams(string chartTag, long labelId) => QuikService.SendAsync<Label>(new MessageS(new string[] { chartTag, labelId.ToString() }, "getLabelParams"));
+        public Task<bool> DelLabel(string tag, long labelId, CancellationToken cancellationToken) => QuikService.SendAsync<bool>(new MessageS(new string[] { tag, labelId.ToString() }, "delLabel"), cancellationToken);
 
-        public Task<bool> DelLabel(string tag, long labelId) => QuikService.SendAsync<bool>(new MessageS(new string[] { tag, labelId.ToString() }, "delLabel"));
+        public Task DelAllLabels(string tag, CancellationToken cancellationToken) => QuikService.SendAsync<string>(new Message<string>(tag, "delAllLabels"), cancellationToken);
 
-        public Task DelAllLabels(string tag) => QuikService.SendAsync<string>(new Message<string>(tag, "delAllLabels"));
+        public Task PrepareToDisconnect(CancellationToken cancellationToken) => QuikService.SendAsync<string>(new Message<string>("", "prepareToDisconnect"), cancellationToken);
 
-        public Task PrepareToDisconnect() => QuikService.SendAsync<string>(new Message<string>("", "prepareToDisconnect"));
-
-        public async Task<DateTime> GetTradeDate()
+        public async Task<DateTime> GetTradeDate(CancellationToken cancellationToken)
         {
-            var r = await QuikService.SendAsync<TradeDate>(new Message<string>("", "getTradeDate")).ConfigureAwait(false);
+            var r = await QuikService.SendAsync<TradeDate>(new Message<string>("", "getTradeDate"), cancellationToken).ConfigureAwait(false);
             return r.ToDateTime();
         }
 
-        public void GetNetStats(out long bytes_sent, out long bytes_recieved, out long bytes_callback, out long request_query_size)
-            => QuikService.GetNetStats(out bytes_sent, out bytes_recieved, out bytes_callback, out request_query_size);
+        public void GetNetStats(out ServiceNetworkStats networkStats) => QuikService.GetNetStats(out networkStats);
     }
 }

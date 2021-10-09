@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace QUIKSharp.DataStructures
 {
@@ -14,7 +15,7 @@ namespace QUIKSharp.DataStructures
         /// Strike
         /// </summary>
         [JsonProperty("Strike")]
-        public double Strike { get; set; }
+        public decimal Strike { get; set; }
 
         /// <summary>
         /// Code
@@ -38,7 +39,7 @@ namespace QUIKSharp.DataStructures
         /// Offer
         /// </summary>
         [JsonProperty("OFFER")]
-        public double OFFER { get; set; }
+        public decimal OFFER { get; set; }
 
         /// <summary>
         /// Longname
@@ -56,7 +57,8 @@ namespace QUIKSharp.DataStructures
         /// OptionType
         /// </summary>
         [JsonProperty("OPTIONTYPE")]
-        public string OPTIONTYPE { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public OptionType OPTIONTYPE { get; set; }
 
         /// <summary>
         /// ShortName
@@ -68,12 +70,12 @@ namespace QUIKSharp.DataStructures
         /// Bid
         /// </summary>
         [JsonProperty("BID")]
-        public double BID { get; set; }
+        public decimal BID { get; set; }
 
         /// <summary>
         /// DaysToMatDate
         /// </summary>
         [JsonProperty("DAYS_TO_MAT_DATE")]
-        public int DAYSTOMATDATE { get; set; }
+        public long DAYSTOMATDATE { get; set; }
     }
 }

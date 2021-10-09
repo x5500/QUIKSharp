@@ -46,5 +46,10 @@ namespace QUIKSharp.QOrders
             t.SPREAD_UNITS = OffsetUnits.PRICE_UNITS;
             return t;
         }
+        internal override void UpdateFrom(StopOrder stopOrder, bool noCallEvents)
+        {
+            TakePrice = stopOrder.ConditionPrice;
+            base.UpdateFrom(stopOrder, noCallEvents);
+        }
     }
 }

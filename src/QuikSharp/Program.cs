@@ -5,6 +5,7 @@ using NLog;
 using QUIKSharp.Converters;
 using QUIKSharp.DataStructures;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -127,11 +128,10 @@ namespace QUIKSharp
             // _quik.Events.OnAllTrade += Events_OnAllTrade;
             _quik.Events.OnStop += Events_OnStop;
             _quik.Events.OnClose += Events_OnClose;
-            string time = _quik.Service.GetInfoParam(InfoParams.SERVERTIME).Result;
+            var time = _quik.Service.GetInfoParam(InfoParams.SERVERTIME, CancellationToken.None).Result;
 
-            DateTime time2 = Convert.ToDateTime(time);
-
-            Console.WriteLine(time2);
+            if (DateTime.TryParse(time, out var serverTime))
+                Console.WriteLine(serverTime);
 
             #region Example
 
@@ -148,28 +148,36 @@ namespace QUIKSharp
             };
 
             var n = 0;
-            //var sw = new Stopwatch();
-            //sw.Start();
-            while (n <= 200)
+            var sw = new Stopwatch();
+            sw.Start();
+            while (n <= 10)
             {
                 Console.Write("Best bid: " + bestBidPrice);
                 Console.WriteLine(" Best offer: " + bestOfferPrice);
 
                 // this line caused threading issues with CJSON, when two threads were calling ToJson at the same time
-                time = _quik.Service.GetInfoParam(InfoParams.SERVERTIME).Result;
+                time = _quik.Service.GetInfoParam(InfoParams.SERVERTIME, CancellationToken.None).Result;
 
                 Thread.Sleep(50);
 
                 n++;
             }
 
-            //sw.Stop();
-            //Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds);
-            //Console.WriteLine("Per call: " + (sw.ElapsedMilliseconds / n));
+            sw.Stop();
+            Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds);
+            Console.WriteLine("Per call: " + (sw.ElapsedMilliseconds / n));
             Console.WriteLine("While Exit");
 
             #endregion Example
 
+            var sec = new Param();
+            sec.ClassCode = "SPBOPT";
+            sec.SecCode = "SFZ1";
+            var ob = _quik.Trading.GetOptionBoard(sec, CancellationToken.None).Result;
+            foreach(var op in ob)
+            {
+                Console.WriteLine(op.ToJson());
+            }
             // hold the console so it doesn’t run off the end
             while (!_exitSystem)
             {

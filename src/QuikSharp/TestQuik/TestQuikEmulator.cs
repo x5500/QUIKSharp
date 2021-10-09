@@ -93,15 +93,15 @@ namespace QUIKSharp.TestQuik
 
         // ----------------------------------------- Test transactions ------------------------------------------
         IIdentifyTransaction ITransactionsFunctions.IdProvider { get => this; set => throw new NotImplementedException(); }
-        public async Task<long> LuaNewTransactionID(long step = 1) => Interlocked.Increment(ref trans_id);
-        public Task<long> SendTransaction(Transaction t) => throw new NotImplementedException();
+        public async Task<long> LuaNewTransactionID(long step, CancellationToken cancellationToken) => Interlocked.Increment(ref trans_id);
+        public Task<long> SendTransaction(Transaction t, CancellationToken cancellationToken) => throw new NotImplementedException();
         // -------------------------------------------------------------------------------------
         /// <summary>
         /// При вызове SendTransactionAsync заполняется transaction
         /// ответом возвращаем transStatus
         /// Для ответа на этот асинхронный запрос вызывай метод SendTransReply()
         /// </summary>
-        public async Task<TransactionResult> SendTransactionAsync(Transaction t)
+        public async Task<TransactionResult> SendTransactionAsync(Transaction t, CancellationToken cancellationToken)
         {
             if (stop_orders.ContainsKey(t.CLIENT_CODE) || limit_orders.ContainsKey(t.CLIENT_CODE))
             {

@@ -4,6 +4,7 @@
 
 using QUIKSharp.DataStructures;
 using QUIKSharp.DataStructures.Transaction;
+using System.Threading;
 
 namespace QUIKSharp
 {
@@ -22,7 +23,7 @@ namespace QUIKSharp
         /// <returns></returns>
         virtual public long GetNextId()
         {
-            return quik.Transactions.LuaNewTransactionID().ConfigureAwait(false).GetAwaiter().GetResult();
+            return quik.Transactions.LuaNewTransactionID(1, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         /// <summary>

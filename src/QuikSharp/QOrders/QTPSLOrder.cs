@@ -82,13 +82,20 @@ namespace QUIKSharp.QOrders
             }
         }
 
+        internal override void UpdateFrom(StopOrder stopOrder, bool noCallEvents)
+        {
+            TakePrice = stopOrder.ConditionPrice;
+            StopPrice = stopOrder.ConditionPrice2;
+            base.UpdateFrom(stopOrder, noCallEvents);
+        }
+
         public override Transaction PlaceOrderTransaction()
         {
             var t = base.PlaceOrderTransaction();
+            /// t.PRICE = deal_sl_price;  // -- Цена заявки, за единицу инструмента.
             t.STOP_ORDER_KIND = this.IsActiveOrderExecution ? StopOrderKind.ACTIVATED_BY_ORDER_TAKE_PROFIT_AND_STOP_LIMIT_ORDER : StopOrderKind.TAKE_PROFIT_AND_STOP_LIMIT_ORDER;
             t.STOPPRICE = TakePrice;  // -- тэйк-профит
             t.STOPPRICE2 = StopPrice; // -- стоп-лимит
-            //t.PRICE = deal_sl_price;  // -- Цена заявки, за единицу инструмента.
             t.OFFSET = Offset;
             t.OFFSET_UNITS = OffsetUnits.PRICE_UNITS;
             t.MARKET_STOP_LIMIT = YesOrNo.NO;

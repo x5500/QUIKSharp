@@ -5,6 +5,7 @@ using NLog;
 using QUIKSharp;
 using QUIKSharp.DataStructures;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 #pragma warning disable CS1998 // В асинхронном методе отсутствуют операторы await, будет выполнен синхронный метод
@@ -17,74 +18,74 @@ namespace QUIKSharp.TestQuik
         internal bool _isConnected;
         internal DateTime _TradeDate;
 
-        public void GetNetStats(out long bytes_sent, out long bytes_recieved, out long bytes_callback, out long requests_query_size)
+        public void GetNetStats(out ServiceNetworkStats networkStats)
         {
             throw new NotImplementedException();
         }
 
-        Task<long> IServiceFunctions.AddLabel(string chartTag, Label label_params)
+        Task<long> IServiceFunctions.AddLabel(string chartTag, Label label_params, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        Task IServiceFunctions.DelAllLabels(string tag)
+        Task IServiceFunctions.DelAllLabels(string tag, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        Task<bool> IServiceFunctions.DelLabel(string tag, long labelId)
+        Task<bool> IServiceFunctions.DelLabel(string tag, long labelId, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        Task<string> IServiceFunctions.GetInfoParam(InfoParams param)
+        Task<string> IServiceFunctions.GetInfoParam(InfoParams param, CancellationToken task_cancel)
         {
             throw new NotImplementedException();
         }
 
-        Task<Label> IServiceFunctions.GetLabelParams(string chartTag, long labelId)
+        Task<Label> IServiceFunctions.GetLabelParams(string chartTag, long labelId, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        Task<string> IServiceFunctions.GetScriptPath()
+        Task<string> IServiceFunctions.GetScriptPath(CancellationToken task_cancel)
         {
             throw new NotImplementedException();
         }
 
-        async Task<DateTime> IServiceFunctions.GetTradeDate()
+        async Task<DateTime> IServiceFunctions.GetTradeDate(CancellationToken cancellationToken)
         {
             return _TradeDate;
         }
 
-        Task<string> IServiceFunctions.GetWorkingFolder()
+        Task<string> IServiceFunctions.GetWorkingFolder(CancellationToken task_cancel)
         {
             throw new NotImplementedException();
         }
 
-        async Task<bool> IServiceFunctions.IsConnected(int timeout)
+        async Task<bool> IServiceFunctions.IsConnected(CancellationToken task_cancel)
         {
             return _isConnected;
         }
 
-        async Task<string> IServiceFunctions.Message(string message, NotificationType iconType)
+        async Task<string> IServiceFunctions.Message(string message, NotificationType iconType, CancellationToken task_cancel)
         {
             logging.Info($"({iconType}) Message: {message}");
             return "";
         }
 
-        Task IServiceFunctions.PrepareToDisconnect()
+        Task IServiceFunctions.PrepareToDisconnect(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        async Task<string> IServiceFunctions.PrintDbgStr(string message)
+        async Task<string> IServiceFunctions.PrintDbgStr(string message, CancellationToken task_cancel)
         {
             logging.Debug($"PrintDbgStr: {message}");
             return "";
         }
 
-        Task<bool> IServiceFunctions.SetLabelParams(string chartTag, long labelId, Label label_params)
+        Task<bool> IServiceFunctions.SetLabelParams(string chartTag, long labelId, Label label_params, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

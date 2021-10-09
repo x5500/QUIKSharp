@@ -117,6 +117,7 @@ namespace QUIKSharp.QOrders
             this.OrderNum = stopOrder.OrderNum;
             this.CoOrderNum = stopOrder.co_order_num;
             this.ChildLimitOrderNum = stopOrder.LinkedOrder;
+            this.Price = stopOrder.Price;
 
             // Для Стоп-ордера эти поля заполняем по факту исполнения лимитных заявок
             // QtyLeft, QtyTraded

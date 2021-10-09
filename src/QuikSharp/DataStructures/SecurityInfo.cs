@@ -46,7 +46,7 @@ namespace QUIKSharp.DataStructures
         /// Номинал
         /// </summary>
         [JsonProperty("face_value")]
-        public string FaceValue { get; set; }
+        public long FaceValue { get; set; }
 
         /// <summary>
         /// Код валюты номинала

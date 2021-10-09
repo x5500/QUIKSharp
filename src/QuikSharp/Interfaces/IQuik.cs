@@ -11,9 +11,7 @@ namespace QUIKSharp
         /// Default timeout to use for send operations if no specific timeout supplied.
         /// </summary>
         TimeSpan DefaultSendTimeout { get; set; }
-
-        //TimeZoneInfo TimeZoneInfo { get; set; }
-
+        
         /// <summary>
         /// Установлено ли соединение с LUA сервисом QUIKSharp на клиенском рабочем месте Quik
         /// </summary>

@@ -34,6 +34,7 @@
         <StartupObject></StartupObject>
         <AnalysisLevel>5.0</AnalysisLevel>
         <Version>2.1.0</Version>
+        <ApplicationIcon />
     </PropertyGroup>
     <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net472|AnyCPU'">
 		<Title>QUIKSharp for .NET 4.7.2 AnyCPU</Title>

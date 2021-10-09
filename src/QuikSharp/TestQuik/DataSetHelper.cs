@@ -25,7 +25,6 @@ namespace QUIKSharp.TestQuik
                 if (!property.CanRead) continue;
                 if (!dt.Columns.Contains(property.Name))
                 {
-                    //                    var dc = dt.Columns.Add(property.Name, Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType);
                     Type column_type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
                     if (column_type == typeof(QuikDateTime))
                         column_type = typeof(DateTime);

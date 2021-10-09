@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2021 Alex Mishin, https://github.com/x8800
 // Based on QUIKSharp, Authors https://github.com/finsight/QUIKSharp/blob/master/AUTHORS.md.
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace QUIKSharp
@@ -43,7 +44,8 @@ namespace QUIKSharp
                 {
                     // Нужно заказать новый блок сейчас
                     // и взять из него new_id
-                    new_id = quik.Transactions.LuaNewTransactionID(bulk_size).Result;
+                    // TODO:  CancellationToken!
+                    new_id = quik.Transactions.LuaNewTransactionID(bulk_size, CancellationToken.None).Result;
                     nextId = new_id + 1;
                     lastId = new_id + bulk_size;
                 }
@@ -62,7 +64,8 @@ namespace QUIKSharp
                        {
                            if (nextId >= lastId)
                            {
-                               var new_block_start = quik.Transactions.LuaNewTransactionID(bulk_size).Result;
+                               // TODO:  CancellationToken!
+                               var new_block_start = quik.Transactions.LuaNewTransactionID(bulk_size, CancellationToken.None).Result;
                                nextId = new_block_start;
                                lastId = new_block_start + bulk_size;
                            }

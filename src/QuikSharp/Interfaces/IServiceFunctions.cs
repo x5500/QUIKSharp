@@ -17,44 +17,47 @@ namespace QUIKSharp
         /// Функция возвращает путь, по которому находится файл info.exe, исполняющий данный скрипт, без завершающего обратного слэша («\»). Например, C:\QuikFront.
         /// </summary>
         /// <returns></returns>
-        Task<string> GetWorkingFolder();
+        Task<string> GetWorkingFolder(CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция предназначена для определения состояния подключения клиентского места к серверу. Возвращает «1», если клиентское место подключено и «0», если не подключено.
         /// </summary>
         /// <returns></returns>
-        Task<bool> IsConnected(int timeout = Timeout.Infinite);
+        Task<bool> IsConnected(CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция возвращает путь, по которому находится запускаемый скрипт, без завершающего обратного слэша («\»). Например, C:\QuikFront\Scripts
         /// </summary>
         /// <returns></returns>
-        Task<string> GetScriptPath();
+        Task<string> GetScriptPath(CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция возвращает значения параметров информационного окна (пункт меню Связь / Информационное окно…).
         /// </summary>
         /// <param name="param"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<string> GetInfoParam(InfoParams param);
+        Task<string> GetInfoParam(InfoParams param, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция отображает сообщения в терминале QUIK.
         /// </summary>
         /// <param name="message"></param>
         /// <param name="iconType"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<string> Message(string message, NotificationType iconType);
+        Task<string> Message(string message, NotificationType iconType, CancellationToken cancellationToken);
 
-        Task<string> PrintDbgStr(string message);
+        Task<string> PrintDbgStr(string message, CancellationToken cancellationToken);
 
         /// <summary>
         /// Добавляет метку с заданными параметрами. Хотя бы один из параметров text или imagePath должен быть задан.
         /// </summary>
         /// <param name="chartTag">тег графика, к которому привязывается метка</param>
         /// <param name="label_params">Парметры метки</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>Возвращает Id метки</returns>
-        Task<long> AddLabel(string chartTag, Label label_params);
+        Task<long> AddLabel(string chartTag, Label label_params, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция задает параметры для метки с указанным идентификатором.
@@ -62,51 +65,51 @@ namespace QUIKSharp
         /// <param name="chartTag">тег графика, к которому привязывается метка</param>
         /// <param name="labelId">идентификатор метки.</param>
         /// <param name="label_params">Таблица параметров метки</param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<bool> SetLabelParams(string chartTag, long labelId, Label label_params);
+        Task<bool> SetLabelParams(string chartTag, long labelId, Label label_params, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция возвращает таблицу с параметрами метки. В случае неуспешного завершения функция возвращает «nil».
         /// </summary>
         /// <param name="chartTag">тег графика, к которому привязывается метка</param>
         /// <param name="labelId">идентификатор метки.</param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<Label> GetLabelParams(string chartTag, long labelId);
+        Task<Label> GetLabelParams(string chartTag, long labelId, CancellationToken cancellationToken);
 
         /// <summary>
         /// Удаляет метку по ее Id
         /// </summary>
         /// <param name="chartTag">тег графика, к которому привязывается метка</param>
         /// <param name="labelId">Id метки</param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<bool> DelLabel(string chartTag, long labelId);
+        Task<bool> DelLabel(string chartTag, long labelId, CancellationToken cancellationToken);
 
         /// <summary>
         /// Удаляет все метки с графика
         /// </summary>
         /// <param name="chartTag">тег графика, к которому привязывается метка</param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task DelAllLabels(string chartTag);
+        Task DelAllLabels(string chartTag, CancellationToken cancellationToken);
 
         /// <summary>
         ///  Функция предназначена для оповещения скрипта о том, что клиент собирается отсоединяться
         /// </summary>
         /// <returns></returns>
-        Task PrepareToDisconnect();
+        Task PrepareToDisconnect(CancellationToken cancellationToken);
 
         /// <summary>
         ///  Функция предназначена для оповещения скрипта о том, что клиент собирается отсоединяться
         /// </summary>
         /// <returns></returns>
-        Task<DateTime> GetTradeDate();
+        Task<DateTime> GetTradeDate(CancellationToken cancellationToken);
 
         /// <summary>
         /// Возвращает статистику сетевого соединения
         /// </summary>
-        /// <param name="bytes_sent"></param>
-        /// <param name="bytes_recieved"></param>
-        /// <param name="bytes_callback"></param>
-        /// <param name="requests_query_size">Количество отправленных запросов, ожидающих и еще не получивших ответа</param>
-        void GetNetStats(out long bytes_sent, out long bytes_recieved, out long bytes_callback, out long requests_query_size);
+        void GetNetStats(out ServiceNetworkStats stats);
     }
 }

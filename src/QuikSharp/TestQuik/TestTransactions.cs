@@ -17,17 +17,17 @@ namespace QUIKSharp.TestQuik
 
         public IIdentifyTransaction IdProvider { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        public async Task<long> LuaNewTransactionID(long step = 1)
+        public async Task<long> LuaNewTransactionID(long step, CancellationToken cancellationToken)
         {            
             return ++trans_id;
         }
 
-        public Task<long> SendTransaction(Transaction t)
+        public Task<long> SendTransaction(Transaction t, CancellationToken task_cancel)
         {
-            return LuaNewTransactionID();
+            return LuaNewTransactionID(1, task_cancel);
         }
 
-        public async Task<TransactionResult> SendTransactionAsync(Transaction t)
+        public async Task<TransactionResult> SendTransactionAsync(Transaction t, CancellationToken task_cancel)
         {
             long new_id = ++trans_id;
             return new TransactionResult { Result = TransactionStatus.Success, ResultMsg = "", TransId = new_id };
