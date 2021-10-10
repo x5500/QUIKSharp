@@ -53,25 +53,27 @@ namespace QUIKSharp.Converters
 
             return (T)TypeConverter.ConvertFromInvariantString(value);
         }
+
         public static bool TryConvertBase64Encoded(string value, out T result)
         {
-
             try
             {
                 if (value.StartsWith("D="))
                 {
-                    var base64 = value.Substring(2);
-                    byte[] bytes = System.Convert.FromBase64String(base64);
-                    var value_as_double = BitConverter.ToDouble(bytes, 0);
-                    result = (T)Convert.ChangeType(value_as_double, typeof(T));
+                    Span<byte> src_bytes = System.Text.Encoding.UTF8.GetBytes(value);
+                    byte[] dst_bytes = new byte[8];
+                    System.Buffers.Text.Base64.DecodeFromUtf8(src_bytes.Slice(2,12), dst_bytes, out _, out _);
+                    var decoded = BitConverter.ToDouble(dst_bytes, 0);
+                    result = (T)Convert.ChangeType(decoded, typeof(T));
                     return true;
                 }
                 if (value.StartsWith("L="))
                 {
-                    var base64 = value.Substring(2);
-                    byte[] bytes = System.Convert.FromBase64String(base64);
-                    var value_as_long = BitConverter.ToInt64(bytes, 0);
-                    result = (T)Convert.ChangeType(value_as_long, typeof(T));
+                    Span<byte> src_bytes = System.Text.Encoding.UTF8.GetBytes(value);
+                    byte[] dst_bytes = new byte[8];
+                    System.Buffers.Text.Base64.DecodeFromUtf8(src_bytes.Slice(2, 12), dst_bytes, out _, out _);
+                    var decoded = BitConverter.ToDouble(dst_bytes, 0);
+                    result = (T)Convert.ChangeType(decoded, typeof(T));
                     return true;
                 }
             }

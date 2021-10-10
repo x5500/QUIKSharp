@@ -26,14 +26,29 @@ namespace QUIKSharp.Transport
         /// </summary>
         internal Task<T> ResultTask { get => tcs.Task; }
 
-        internal RequestReplyState(IMessage request, CancellationToken task_cancel, CancellationToken service_stop)
-            : base(request, typeof(Message<T>), task_cancel, service_stop)
+        private static readonly bool IsWithLuaTimeStamp;
+        static RequestReplyState()
+        {
+            IsWithLuaTimeStamp = typeof(IWithLuaTimeStamp).IsAssignableFrom(typeof(T));
+        }
+
+        internal RequestReplyState(IMessage request, CancellationToken task_cancel, CancellationToken service_stop, TimeSpan defaultSendTimeout)
+            : base(request, typeof(Message<T>), task_cancel, service_stop, defaultSendTimeout)
         {
             tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         }
-        protected override bool TrySetResult(object message) => tcs.TrySetResult((T)message);
-        protected override bool TrySetException(Exception e) => tcs != null && tcs.TrySetException(e);
-        public override TaskStatus TaskStatus { get => tcs.Task.Status;  }
+        protected override TaskStatus TaskStatus { get => tcs.Task.Status; }
+        protected override bool TrySetResult(object data) => tcs.TrySetResult((T)data);
+        protected override bool TrySetException(Exception e) => (tcs != null) && tcs.TrySetException(e);
+        protected override bool TrySetCancelled(CancellationToken cancellationToken) => (tcs != null) && tcs.TrySetCanceled(cancellationToken);
+        protected override object TypedFromJToken(JToken jToken)
+        {
+            var messsage_t = jToken.FromJToken<Message<T>>();
+            if (IsWithLuaTimeStamp)
+                ((IWithLuaTimeStamp)messsage_t.Data).lua_timestamp = messsage_t.CreatedTime;
+            return messsage_t;
+        }
+
         public new void Dispose()
         {
             base.Dispose();

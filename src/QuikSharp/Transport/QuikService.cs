@@ -2,6 +2,7 @@
 // Based on QUIKSharp, Authors https://github.com/finsight/QUIKSharp/blob/master/AUTHORS.md.
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
 using QUIKSharp.Converters;
@@ -165,7 +166,7 @@ namespace QUIKSharp.Transport
         /// <summary>
         /// IQuickCalls functions enqueue a message and return a task from TCS
         /// </summary>
-        private readonly ConcurrentQueue<IMessage> SendQueue = new ConcurrentQueue<IMessage>();
+        private readonly ConcurrentQueue<RequestReplyStateBase> SendQueue = new ConcurrentQueue<RequestReplyStateBase>();
         private readonly ManualResetEventSlim SendQueue_Avail = new ManualResetEventSlim(false);
         /// <summary>
         /// If received message has a correlation id then use its Data to SetResult on TCS and remove the TCS from the dic
@@ -196,12 +197,12 @@ namespace QUIKSharp.Transport
             // NB we use the token for signalling, could use a simple TCS
             var task_options = TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach | TaskCreationOptions.PreferFairness;
             // Request Task
-            _requestTask = Task.Factory.StartNew(() => Socket_Main_Loop(SendTaskLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
+            _requestTask = Task.Factory.StartNew(() => Socket_Main_Loop(SendTaskIOLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
             // Response Task
-            _responseTask = Task.Factory.StartNew(() => Socket_Main_Loop(ResponseTaskLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
+            _responseTask = Task.Factory.StartNew(() => Socket_Main_Loop(ResponseTaskIOLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
             // Callback Task
             if (_callbackPort != 0)
-                _callbackReceiverTask = Task.Factory.StartNew(() => Socket_Main_Loop(CallbackTaskLoop), CancellationToken.None, task_options, TaskScheduler.Default);
+                _callbackReceiverTask = Task.Factory.StartNew(() => Socket_Main_Loop(CallbackTaskIOLoop), CancellationToken.None, task_options, TaskScheduler.Default);
             else
                 _callbackReceiverTask = Task.CompletedTask;
         }
@@ -256,7 +257,7 @@ namespace QUIKSharp.Transport
         }
         private static bool ProcessIOException(IOException ioe, string func_name)
         {
-            var ex = (ioe.InnerException != null) ? ioe.InnerException : ioe;
+            var ex = ioe.InnerException ?? ioe;
             var ext = ex.GetType();
             if (typeof(SocketException).IsAssignableFrom(ext))
             {
@@ -281,7 +282,7 @@ namespace QUIKSharp.Transport
             }
             return false;
         }
-        private void SendTaskLoop(CancellationToken cancelToken)
+        private void SendTaskIOLoop(CancellationToken cancelToken)
         {
             ResetToQueryAllWaitingMessages();
 
@@ -290,8 +291,7 @@ namespace QUIKSharp.Transport
             var writer = new StreamWriter(stream);
             while (!cancelToken.IsCancellationRequested)
             {
-                IMessage message;
-                if (!SendQueue.TryDequeue(out message))
+                if (!SendQueue.TryDequeue(out RequestReplyStateBase rr))
                 {
                     SendQueue_Avail.Reset();
                     SendQueue_Avail.Wait(cancelToken);
@@ -299,43 +299,39 @@ namespace QUIKSharp.Transport
                 }
                 try
                 {
-                    if (message.Id == 0)
+                    // Request(task) not waiting for response. (As usual: Already cancelled by user or timeout)
+                    if (!Responses.TryGetValue(rr.Id, out var tcs))
                     {
-                        if (logger.IsDebugEnabled)
-                            logger.Debug("SendTaskLoop: Got Request in SendQueue with id=0. All requests must have correlation id");
+                        rr.SetException(new InvalidOperationException("SendTaskLoop: Request is not in wait response query"));
                         continue;
                     }
-
-                    // Request(task) can be cancelled => not waiting for response.
-                    if (!Responses.TryGetValue(message.Id, out var tcs))
-                        continue;
 
                     // Trace.WriteLine("Request: " + request);
                     // scenario: Quik is restarted or script is stopped
                     // then writer must throw and we will add a message back
                     // then we will iterate over messages and cancel expired ones
-                    if (message.ValidUntil.HasValue && message.ValidUntil < DateTime.UtcNow)
+                    if (!rr.IsValid)
                     {
                         tcs.SetException(new TimeoutException("SendTaskLoop: ValidUntilUTC is less than current time"));
                         continue;
                     }
 
-                    var request = message.ToJson();
+                    var request = rr.RequestMsg.ToJson();
                     writer.WriteLine(request);
                     if (!SendQueue.Any()) writer.Flush();
                     Interlocked.Add(ref bytes_sent_request, request.Length);
                 }
                 catch (IOException ioe)
                 {
-                    if (message != null)
-                        AddToQueue(message);
+                    if (rr != null)
+                        AddToQueue(rr);
 
                     ProcessIOException(ioe, "SendTaskLoop");
                     break;
                 }
             }
         }
-        private void ResponseTaskLoop(CancellationToken cancelToken)
+        private void ResponseTaskIOLoop(CancellationToken cancelToken)
         {
             // here we have a connected TCP client
             var stream = new NetworkStream(_responseClient.Client);
@@ -382,7 +378,7 @@ namespace QUIKSharp.Transport
                 }
             }
         }
-        private void CallbackTaskLoop(CancellationToken cancelToken)
+        private void CallbackTaskIOLoop(CancellationToken cancelToken)
         {
             // here we have a connected TCP client
             var stream = new NetworkStream(_callbackClient.Client);
@@ -458,13 +454,17 @@ namespace QUIKSharp.Transport
                 LingerState = new LingerOption(false, 0),
             };
         }
+        /// <summary>
+        /// Throws: OperationCanceledException, ObjectDisposedException
+        /// </summary>
+        /// <param name="ct"></param>
         private void EnsureConnectedClient(CancellationToken ct)
         {
             if (IsServiceConnected()) return;
             bool call_events = false;
+            _syncRoot.Wait(ct);
             try
             {
-                _syncRoot.Wait(ct);
                 if (_connectedMre.isSet && !IsServiceConnected())
                 {
                     _connectedMre.Reset();
@@ -540,76 +540,6 @@ namespace QUIKSharp.Transport
                 logger.Error(e, $"ProcessCallbackMessage: Exception in Event['ConnectedToQuik'].Invoke():  {e.Message}");
             }
         }
-        private async Task EnsureConnectedClientAsync(CancellationToken ct)
-        {
-            await _syncRoot.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (_connectedMre.isSet && !IsServiceConnected())
-                {
-                    _connectedMre.Reset();
-                    Events.OnDisconnectedFromQuikCall();
-                }
-
-                while (!IsServiceConnected())
-                {
-                    ct.ThrowIfCancellationRequested();
-                    try
-                    {
-                        Task task1 = Task.CompletedTask;
-                        if (!IsConnectedTCP(_responseClient))
-                        {
-                            NewTCPSocket(ref _responseClient);
-                            logger.ConditionalTrace("Connecting on request/response channel... ");
-                            task1 = _responseClient.ConnectAsync(_ipaddress, _responsePort)
-                                .ContinueWith((t1, args) =>
-                                {
-                                    var _args = (Tuple<IPAddress, int>)args;
-                                    logger.ConditionalTrace($"Request/response channel connected to '{_args.Item1}:{_args.Item2}");
-                                }, new Tuple<IPAddress, int>(_ipaddress, _responsePort), ct, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-                        }
-
-                        Task task2 = Task.CompletedTask;
-                        if (_callbackPort != 0 && !IsConnectedTCP(_callbackClient))
-                        {
-                            NewTCPSocket(ref _callbackClient);
-                            logger.ConditionalTrace("Connecting on callback channel... ");
-                            task2 = _callbackClient.ConnectAsync(_ipaddress, _callbackPort)
-                                .ContinueWith((t2, args) =>
-                                {
-                                    var _args = (Tuple<IPAddress, int>)args;
-                                    logger.ConditionalTrace($"Callback channel connected to '{_args.Item1}:{_args.Item2}'");
-                                }, new Tuple<IPAddress, int>(_ipaddress, _callbackPort), ct, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-                        }
-                        Task[] tasks = { task1, task2 };
-                        Task.WaitAll(tasks, cancellationToken: ct);
-                    }
-                    catch (SocketException ex) 
-                    {
-                        logger.Error(ex, $"SocketException while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {ex.Message}");
-                        await Task.Delay(100, ct).ConfigureAwait(false);
-                    }
-                    catch (Exception exc)
-                    {
-                        var ex = (exc.InnerException != null) ? exc.InnerException : exc;
-                        if (!typeof(TaskCanceledException).IsAssignableFrom(ex.GetType()))
-                            logger.Error(ex, $"Exception while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {ex.Message}");
-                        await Task.Delay(100, ct).ConfigureAwait(false);
-                    }
-                }
-
-                if (_connectedMre.isWaiting)
-                {
-                    _connectedMre.Set();
-                    // Оповещаем клиента что произошло подключение к Quik'у
-                    Events.OnConnectedToQuikCall(_responsePort);
-                }
-            }
-            finally
-            {
-                _syncRoot.Release();
-            }
-        }
         // --------------------- Query, Request/Reply processing ------------------------------------------------------------------------------------
         /// <summary>
         /// Повторно отправляем запросы, которых нет в очереди на отправку
@@ -617,14 +547,10 @@ namespace QUIKSharp.Transport
         /// </summary>
         private void ResetToQueryAllWaitingMessages()
         {
-            var awaiting_list = Responses.Keys.Except(SendQueue.Select(m => m.Id));
-            foreach (var key in awaiting_list)
-                if (Responses.TryGetValue(key, out var rr))
-                {
-                    if (rr.request.ValidUntil.HasValue || rr.request.ValidUntil <= DateTime.UtcNow)
-                        continue;
-                    AddToQueue(rr.request);
-                }
+            var awaiting_list = Responses.Select(pair => pair.Value).Except(SendQueue).ToList();
+            foreach (var rr in awaiting_list)
+                if (rr.IsValid)
+                    AddToQueue(rr);
         }
         private void ProcessCallbackMessage(string callback)
         {
@@ -749,13 +675,11 @@ namespace QUIKSharp.Transport
             if (request.Id <= 0)
                 request.Id = GetNewUniqueId();
 
-            var rr = new RequestReplyState<TResult>(request, task_cancel, service_stop);
-            if (DefaultSendTimeout.TotalMilliseconds > 0)
-                rr.CancelAfter(DefaultSendTimeout);
+            var rr = new RequestReplyState<TResult>(request, task_cancel, service_stop, DefaultSendTimeout);
 
             Responses[request.Id] = rr;
             // add to queue after responses dictionary
-            AddToQueue(request);
+            AddToQueue(rr);
             _ = rr.ResultTask.ContinueWith((t,id) =>
             {
                 Responses.TryRemove((long)id, out var temp);
@@ -765,9 +689,9 @@ namespace QUIKSharp.Transport
             scheduler: TaskScheduler.Default);
             return rr.ResultTask;
         }
-        private void AddToQueue(IMessage request)
+        private void AddToQueue(RequestReplyStateBase rr)
         {
-            SendQueue.Enqueue(request);
+            SendQueue.Enqueue(rr);
             SendQueue_Avail.Set();
         }
         // ---------------------------------------------------------------------------------------------------
