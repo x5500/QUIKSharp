@@ -22,11 +22,16 @@ namespace QUIKSharp.Functions
         public Task<string> GetWorkingFolder(CancellationToken cancellationToken)
         => QuikService.SendAsync<string>(new Message<string>("", "getWorkingFolder"), cancellationToken);
 
-        public async Task<bool> IsConnected(CancellationToken cancellationToken)
+        public Task<bool> IsConnected(CancellationToken cancellationToken)
         {
             // Optimizing for acommon case: no async machinery involved.
-            var result = await QuikService.SendAsync<string>(new Message<string>("", "isConnected"), cancellationToken).ConfigureAwait(false);
-            return (result == "1");
+            return QuikService.SendAsync<string>(new Message<string>("", "isConnected"), cancellationToken).ContinueWith((rt) =>
+            {
+                if (rt.Exception != null) throw rt.Exception;
+                if (rt.IsCanceled) throw new TaskCanceledException();
+                return (rt.Result == "1");
+            },
+            continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         public Task<string> GetScriptPath(CancellationToken cancellationToken)
@@ -61,11 +66,16 @@ namespace QUIKSharp.Functions
         public Task<string> PrintDbgStr(string message, CancellationToken cancellationToken)
         => QuikService.SendAsync<string>(new Message<string>(message, "PrintDbgStr"), cancellationToken);
 
-        public async Task<long> AddLabel(string chartTag, Label label_params, CancellationToken cancellationToken)
+        public Task<long> AddLabel(string chartTag, Label label_params, CancellationToken cancellationToken)
         {
             var msg = new MessageS(new string[] { chartTag, label_params.ToMsg() }, "addLabel2");
-            var response = await QuikService.SendAsync<string>(msg, cancellationToken).ConfigureAwait(false);
-            return Number<long>.FromString(response);
+            return QuikService.SendAsync<string>(msg, cancellationToken).ContinueWith((rt) =>
+            {
+                if (rt.Exception != null) throw rt.Exception;
+                if (rt.IsCanceled) throw new TaskCanceledException();
+                return Number<long>.FromString(rt.Result);
+            },
+            continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         public Task<bool> SetLabelParams(string chartTag, long labelId, Label label_params, CancellationToken cancellationToken)
@@ -79,10 +89,15 @@ namespace QUIKSharp.Functions
 
         public Task PrepareToDisconnect(CancellationToken cancellationToken) => QuikService.SendAsync<string>(new Message<string>("", "prepareToDisconnect"), cancellationToken);
 
-        public async Task<DateTime> GetTradeDate(CancellationToken cancellationToken)
+        public Task<DateTime> GetTradeDate(CancellationToken cancellationToken)
         {
-            var r = await QuikService.SendAsync<TradeDate>(new Message<string>("", "getTradeDate"), cancellationToken).ConfigureAwait(false);
-            return r.ToDateTime();
+            return QuikService.SendAsync<TradeDate>(new Message<string>("", "getTradeDate"), cancellationToken).ContinueWith((rt) =>
+            {
+                if (rt.Exception != null) throw rt.Exception;
+                if (rt.IsCanceled) throw new TaskCanceledException();
+                return rt.Result.ToDateTime();
+            },
+            continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         public void GetNetStats(out ServiceNetworkStats networkStats) => QuikService.GetNetStats(out networkStats);

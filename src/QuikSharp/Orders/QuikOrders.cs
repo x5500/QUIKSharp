@@ -35,6 +35,11 @@ namespace QUIKSharp.Orders
         ///  Возможно заявка и будет выставлена, если ответ потерялся в сети по пути
         /// </summary>
         Timeout = 3,
+
+        /// <summary>
+        /// Task Cancelled
+        /// </summary>
+        TaskCancelled = 4,
     }
 
     public struct OrderResult
@@ -68,42 +73,49 @@ namespace QUIKSharp.Orders
             this.quik = quik;
         }
 
-        protected async Task<OrderResult> SendWaitTransactionAsync(Transaction t)
+        protected Task<OrderResult> SendWaitTransactionAsync(Transaction t)
         {
             CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(Timeout_ms);
-            var reply = await quik.Transactions.SendWaitTransactionAsync(t, cancellationTokenSource.Token).ConfigureAwait(false);
-
-            if (logger.IsTraceEnabled)
-                logger.Trace(string.Concat("SendWaitTransactionAsync (id: ", t.TRANS_ID, ") Status: ", reply.Status, " ResultMsg: ", reply.ResultMsg));
-
-            switch (reply.Status)
+            return quik.Transactions.SendWaitTransactionAsync(t, cancellationTokenSource.Token).ContinueWith<OrderResult>((tt) =>
             {
-                case TransactionStatus.Success:
-                    return new OrderResult
-                    {
-                        TransID = t.TRANS_ID,
-                        OrderNum = reply.transReply.OrderNum,
-                        Balance = reply.transReply.Balance,
-                        Result = OrderResultCode.Success,
-                        ResultMsg = reply.ResultMsg,
-                    };
+                if (tt.IsCanceled)
+                    return new OrderResult { Result = OrderResultCode.TaskCancelled };
+                if (tt.Exception != null)
+                    throw tt.Exception;
 
-                case TransactionStatus.TimeoutWaitReply:
-                case TransactionStatus.SendRecieveTimeout:
-                    return new OrderResult { TransID = t.TRANS_ID, OrderNum = null, Result = OrderResultCode.Timeout, ResultMsg = reply.ResultMsg };
+                var reply = tt.Result;
+                if (logger.IsTraceEnabled)
+                    logger.Trace(string.Concat("SendWaitTransactionAsync (id: ", t.TRANS_ID, ") Status: ", reply.Status, " ResultMsg: ", reply.ResultMsg));
 
-                case TransactionStatus.QuikError:
-                case TransactionStatus.FailedToSend:
-                case TransactionStatus.LuaException:
-                case TransactionStatus.TransactionException:
-                    return new OrderResult { TransID = t.TRANS_ID, OrderNum = null, Result = OrderResultCode.Error, ResultMsg = reply.ResultMsg };
+                switch (reply.Status)
+                {
+                    case TransactionStatus.Success:
+                        return new OrderResult
+                        {
+                            TransID = t.TRANS_ID,
+                            OrderNum = reply.transReply.OrderNum,
+                            Balance = reply.transReply.Balance,
+                            Result = OrderResultCode.Success,
+                            ResultMsg = reply.ResultMsg,
+                        };
 
-                case TransactionStatus.NoConnection:
-                    return new OrderResult { TransID = t.TRANS_ID, OrderNum = null, Result = OrderResultCode.RejectNoConnection, ResultMsg = reply.ResultMsg };
+                    case TransactionStatus.TimeoutWaitReply:
+                    case TransactionStatus.SendRecieveTimeout:
+                        return new OrderResult { TransID = t.TRANS_ID, OrderNum = null, Result = OrderResultCode.Timeout, ResultMsg = reply.ResultMsg };
 
-                default:
-                    throw new ArgumentOutOfRangeException("TransactionResult.Status", "SendWaitTransactionAsync: reply.Status out of switch cases range!");
-            }
+                    case TransactionStatus.QuikError:
+                    case TransactionStatus.FailedToSend:
+                    case TransactionStatus.LuaException:
+                    case TransactionStatus.TransactionException:
+                        return new OrderResult { TransID = t.TRANS_ID, OrderNum = null, Result = OrderResultCode.Error, ResultMsg = reply.ResultMsg };
+
+                    case TransactionStatus.NoConnection:
+                        return new OrderResult { TransID = t.TRANS_ID, OrderNum = null, Result = OrderResultCode.RejectNoConnection, ResultMsg = reply.ResultMsg };
+
+                    default:
+                        throw new ArgumentOutOfRangeException("TransactionResult.Status", "SendWaitTransactionAsync: reply.Status out of switch cases range!");
+                }
+            }, continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         /// <summary>

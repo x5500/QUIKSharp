@@ -24,7 +24,7 @@ namespace QUIKSharp.Functions
         /// </summary>
         public IIdentifyTransaction IdProvider { get => _idProvider; set => _idProvider = value ?? default_idProvider; }
 
-        private readonly ConcurrentDictionary<long, TaskCompletionSource<TransactionWaitResult>> Transactions = new ConcurrentDictionary<long, TaskCompletionSource<TransactionWaitResult>>();
+        private readonly ConcurrentDictionary<long, TransactionResultWaiter> Transactions = new ConcurrentDictionary<long, TransactionResultWaiter>();
 
         internal TransactionsFunctions(IQuikService quikService, IIdentifyTransaction idProvider) : base(quikService)
         {
@@ -48,7 +48,7 @@ namespace QUIKSharp.Functions
                 }
 
                 foreach (var t in Transactions)
-                    t.Value.TrySetCanceled();
+                    t.Value.SetCanceled();
 
                 Transactions.Clear();
             }
@@ -88,7 +88,7 @@ namespace QUIKSharp.Functions
         /// <param name="t">Transaction</param>
         /// <param name="cancellationToken"></param>
         /// <returns>bool - result</returns>
-        public async Task<TransactionResult> SendTransactionAsync(Transaction t, CancellationToken cancellationToken)
+        public Task<TransactionResult> SendTransactionAsync(Transaction t, CancellationToken cancellationToken)
         {
             if (IdProvider == null)
                 throw new NullReferenceException("SendWaitTransactionAsync: idProvider == null");
@@ -100,37 +100,60 @@ namespace QUIKSharp.Functions
             }
             catch (LuaException e)
             {
-                return new TransactionResult() { Result = TransactionStatus.LuaException, ResultMsg = e.Message, TransId = 0 };
+                return Task.FromResult( new TransactionResult { Result = TransactionStatus.LuaException, ResultMsg = e.Message, TransId = 0 });
             }
 
-            try
+            return QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction"), cancellationToken).ContinueWith<TransactionResult>((_st) =>
             {
-                bool sent_ok = await QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction"), cancellationToken).ConfigureAwait(false);
-                if (sent_ok) // bool, true if transaction was sent
-                    return new TransactionResult() { Result = TransactionStatus.Success, ResultMsg = string.Empty, TransId = TRANS_ID };
-
-                string ResultMsg = "Failed call LUA function SendTransaction: result == false";
-                logger.ConditionalDebug(ResultMsg);
-                return new TransactionResult() { Result = TransactionStatus.FailedToSend, ResultMsg = ResultMsg, TransId = TRANS_ID };
-            }
-            catch (TransactionException e)
-            {
-                if (logger.IsDebugEnabled)
-                    logger.Debug("TransactionException: " + e.Message);
-                return new TransactionResult() { Result = TransactionStatus.TransactionException, ResultMsg = e.Message, TransId = TRANS_ID };
-            }
-            catch (TimeoutException)
-            {
-                // Не дождались отправки/получения , задача завершена по таймауту
-                var ResultMsg = "Timeout while SendTransaction using service Quik";
-                return new TransactionResult() { Result = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg, TransId = TRANS_ID };
-            }
-            catch (Exception e)
-            {
-                // Что то пошло не так и сервис Quik кинул нам exception.
-                logger.Error(string.Concat("SendTransaction (TRANS_ID: ", TRANS_ID, ") Caught Exception from Quik service: ", e.Message));
-                throw;
-            }
+            
+                if (_st.Status == TaskStatus.RanToCompletion)
+                {
+                    if (_st.Result)
+                    {
+                        return new TransactionResult { Result = TransactionStatus.Success, ResultMsg = string.Empty, TransId = TRANS_ID };
+                    }
+                    else
+                    {
+                        string ResultMsg = "Failed call LUA function SendTransactionAsync: result == false";
+                        logger.ConditionalDebug(ResultMsg);
+                        return new TransactionResult { Result = TransactionStatus.FailedToSend, ResultMsg = ResultMsg, TransId = TRANS_ID };
+                    }
+                }
+                else if (_st.IsCanceled)
+                {
+                    throw new TaskCanceledException();
+                }
+                if (_st.Exception != null)
+                {
+                    var e = _st.Exception.InnerException;
+                    if (typeof(TransactionException).IsInstanceOfType(e))
+                    {
+                        if (logger.IsDebugEnabled)
+                            logger.Debug("SendTransactionAsync TransactionException: " + e.Message);
+                        return new TransactionResult { Result = TransactionStatus.TransactionException, ResultMsg = e.Message, TransId = TRANS_ID };
+                    }
+                    else
+                    if (typeof(TimeoutException).IsInstanceOfType(e))
+                    {
+                        // Не дождались отправки/получения , задача завершена по таймауту
+                        var ResultMsg = "Timeout while SendTransactionAsync using service Quik";
+                        return new TransactionResult { Result = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg, TransId = TRANS_ID };
+                    }
+                    if (typeof(TaskCanceledException).IsInstanceOfType(e))
+                    {
+                        throw e;
+                    }
+                    else
+                    {
+                        // Что то пошло не так и сервис Quik кинул нам exception.
+                        logger.Error(string.Concat("SendTransactionAsync (TRANS_ID: ", TRANS_ID, ") Caught Exception from Quik service: ", e.Message));
+                        throw e;
+                    }
+                }
+                var msg = string.Concat("SendTransactionAsync (TRANS_ID: ", TRANS_ID, ") Unhandled behavior! ");
+                logger.Fatal(msg);
+                throw new Exception(msg);
+            }, TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         /// <summary>
@@ -140,16 +163,16 @@ namespace QUIKSharp.Functions
         /// <param name="t"></param>
         /// <param name="cancellationToken"></param>
         /// <returns>TRANS_ID if success, -1 or -TRANS_ID if fails</returns>
-        public async Task<long> SendTransaction(Transaction t, CancellationToken cancellationToken)
+        public Task<long> SendTransaction(Transaction t, CancellationToken cancellationToken)
         {
-            // dirty hack: if transaction was sent we return its id,
-            // else we return negative id so the caller will know that
-            // the transaction was not sent
-            var result = await SendTransactionAsync(t, cancellationToken).ConfigureAwait(false);
-            if (result.Result == TransactionStatus.Success)
-                return result.TransId;
-            else
-                return -result.TransId;
+            return SendTransactionAsync(t, cancellationToken).ContinueWith<long>((_st) =>
+                {
+                    if (_st.Result.Result == TransactionStatus.Success)
+                        return _st.Result.TransId;
+                    else
+                        return -_st.Result.TransId;
+
+                }, TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         /// <summary>
@@ -168,7 +191,7 @@ namespace QUIKSharp.Functions
         /// <param name="t">Транзакция (Transaction) </param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task<TransactionWaitResult> SendWaitTransactionAsync(Transaction t, CancellationToken cancellationToken)
+        public Task<TransactionWaitResult> SendWaitTransactionAsync(Transaction t, CancellationToken cancellationToken)
         {
             if (IdProvider == null)
                 throw new NullReferenceException("SendWaitTransactionAsync: idProvider == null");
@@ -180,69 +203,77 @@ namespace QUIKSharp.Functions
             }
             catch (LuaException e)
             {
-                return new TransactionWaitResult { transReply = null, Status = TransactionStatus.LuaException, ResultMsg = e.Message };
+                return Task.FromResult<TransactionWaitResult>( new TransactionWaitResult { transReply = null, Status = TransactionStatus.LuaException, ResultMsg = e.Message } );
             }
 
             //  Функция отправляет транзакцию на сервер QUIK и возвращает true в случае успеха,
             //  в случае неудачи возращает false и текст ошибки в свойстве ErrorMessage транзакции.
             // Сервис quik может сообщить об ошибке так же и бросив Exception, например на Timeout
-            try
-            {
-                bool sent_ok = await QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction"), cancellationToken).ConfigureAwait(false);
-                if (!sent_ok)
-                {
-                    string ResultMsg = "SendTransactionAsync: Call for LUA function 'sendTransaction' failed!";
-                    logger.ConditionalDebug(ResultMsg);
-                    return new TransactionWaitResult { transReply = null, Status = TransactionStatus.FailedToSend, ResultMsg = ResultMsg };
-                }
-            }
-            catch (TransactionException e)
-            {
-                if (logger.IsDebugEnabled)
-                    logger.Debug("TransactionException: " + e.Message);
-
-                var status = (e.Message == "Not connected") ? TransactionStatus.NoConnection : TransactionStatus.TransactionException;
-                return new TransactionWaitResult { transReply = null, Status = status, ResultMsg = e.Message };
-            }
-            catch (TimeoutException)
-            {
-                // Не дождались отправки/получения , задача завершена по таймауту
-                var ResultMsg = "Timeout while SendTransaction using service Quik";
-                return new TransactionWaitResult { transReply = null, Status = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg };
-            }
-            catch (Exception e)
-            {
-                // Что то пошло не так и сервис Quik кинул нам exception.
-                logger.Error(string.Concat("SendTransaction (TRANS_ID: ", TRANS_ID, ") Caught Exception from Quik service: ", e.Message));
-                throw;
-            }
-
             // Иначе ожидаем ответ через Events_OnTransReply
-            var tcs = new TaskCompletionSource<TransactionWaitResult>(TaskCreationOptions.AttachedToParent);
-            if (!Transactions.TryAdd(TRANS_ID, tcs))
+
+            var request_task = QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction"), cancellationToken);
+            var waiter = new TransactionResultWaiter(request_task, cancellationToken);
+            if (!Transactions.TryAdd(TRANS_ID, waiter))
             {
                 throw new Exception("Can't add QTransaction (TRANS_ID:  " + TRANS_ID + ") to Transactions dictionary");
             }
+            
+            // Clearance on task complete/cancelled/failed
+            _ = waiter.ResultTask.ContinueWith((w, id) =>
+            {
+                Transactions.TryRemove((long)id, out var temp);
+            }, TRANS_ID);
 
-            // this callback will be executed when token is cancelled
-            try
+            request_task.ContinueWith(OnRequestResult, state: waiter, continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
+            return waiter.ResultTask;
+
+            void OnRequestResult(Task<bool> rt, object w)
             {
-                using (cancellationToken.Register(() => tcs.TrySetCanceled()))
+                var _waiter = w as TransactionResultWaiter;
+                if (rt.Status == TaskStatus.RanToCompletion)
                 {
-                    // Получаем долгожданный ответ
-                    return await tcs.Task.ConfigureAwait(false);
+                    if (!rt.Result)
+                    {
+                        string ResultMsg = "SendTransactionAsync: Call for LUA function 'sendTransaction' failed!";
+                        logger.ConditionalDebug(ResultMsg);
+                        _waiter.SetResult(new TransactionWaitResult { transReply = null, Status = TransactionStatus.FailedToSend, ResultMsg = ResultMsg });
+                    }
                 }
-            }
-            catch (TaskCanceledException)
-            {
-                if (cancellationToken.IsCancellationRequested)
+                else
+                if (rt.IsCanceled)
                 {
-                    // Не дождались, задача завершена по таймауту
-                    var ResultMsg = "Timeout waiting for TransactionReply from Quik Server/Broker";
-                    logger.ConditionalDebug(ResultMsg);
-                    return new TransactionWaitResult { transReply = null, Status = TransactionStatus.TimeoutWaitReply, ResultMsg = ResultMsg };
+                    _waiter.SetException(new TaskCanceledException());
                 }
-                else throw;
+                else
+                if (rt.IsFaulted && (rt.Exception != null))
+                {
+                    var e = rt.Exception.InnerException;
+                    if (typeof(TransactionException).IsInstanceOfType(e))
+                    {
+                        if (logger.IsDebugEnabled)
+                            logger.Debug("TransactionException: " + e.Message);
+
+                        var status = (e.Message == "Not connected") ? TransactionStatus.NoConnection : TransactionStatus.TransactionException;
+                        _waiter.SetResult( new TransactionWaitResult { transReply = null, Status = status, ResultMsg = e.Message });
+                    }
+                    else
+                    if (typeof(TimeoutException).IsInstanceOfType(e))
+                    {
+                        // Не дождались отправки/получения , задача завершена по таймауту
+                        var ResultMsg = "Timeout while SendTransaction using service Quik";
+                        _waiter.SetResult(new TransactionWaitResult { transReply = null, Status = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg });
+                    }
+                    if (typeof(TaskCanceledException).IsInstanceOfType(e))
+                    {
+                        _waiter.SetException(e);
+                    }
+                    else
+                    {
+                        // Что то пошло не так и сервис Quik кинул нам exception.
+                        logger.Error(string.Concat("SendTransaction (TRANS_ID: ", TRANS_ID, ") Caught Exception from Quik service: ", e.Message));
+                        _waiter.SetException(rt.Exception);
+                    }
+                }
             }
         }
 
@@ -298,7 +329,7 @@ namespace QUIKSharp.Functions
             }
 
             long TRANS_ID = IdProvider.IdentifyTransactionReply(transReply);
-            if (this.Transactions.TryRemove(TRANS_ID, out TaskCompletionSource<TransactionWaitResult> tcs))
+            if (this.Transactions.TryRemove(TRANS_ID, out var waiter))
             {
                 var ResultMsg = transReply.ResultMsg ?? $" Status: {transReply.Status}, ErrorCode {transReply.ErrorCode}, ErrorSource {transReply.ErrorSource}";
                 var result = new TransactionWaitResult()
@@ -313,7 +344,7 @@ namespace QUIKSharp.Functions
                     logger.Trace(string.Concat("Events_OnTransReply (TransID: ", transReply.TransID, " result: ", ResultMsg));
                 }
 
-                tcs.TrySetResult(result);
+                waiter.SetResult(result);
             }
             else
             {
@@ -335,7 +366,7 @@ namespace QUIKSharp.Functions
             if (IdProvider == null) return;
 
             long TRANS_ID = IdProvider.IdentifyOrder(order);
-            if ((TRANS_ID != 0) && this.Transactions.TryRemove(TRANS_ID, out TaskCompletionSource<TransactionWaitResult> tcs))
+            if ((TRANS_ID != 0) && this.Transactions.TryRemove(TRANS_ID, out var waiter))
             {
                 bool rejected = order.State == QUIKSharp.DataStructures.State.Rejected;
                 var ResultMsg = rejected ? $"Order (TRANS_ID: {TRANS_ID}  RejectReason: {order.RejectReason}"
@@ -353,7 +384,7 @@ namespace QUIKSharp.Functions
                     ResultMsg = ResultMsg,
                 };
 
-                tcs.TrySetResult(result);
+                waiter.SetResult(result);
             }
         }
 
@@ -367,7 +398,7 @@ namespace QUIKSharp.Functions
             if (IdProvider == null) return;
 
             long TRANS_ID = IdProvider.IdentifyOrder(order);
-            if ((TRANS_ID != 0) && this.Transactions.TryRemove(TRANS_ID, out TaskCompletionSource<TransactionWaitResult> tcs))
+            if ((TRANS_ID != 0) && this.Transactions.TryRemove(TRANS_ID, out var waiter))
             {
                 bool rejected = order.State == State.Rejected;
                 var ResultMsg = rejected ? $"StopOrder Rejected (TRANS_ID: {TRANS_ID} {order.Flags} {order.StopFlags})"
@@ -385,7 +416,7 @@ namespace QUIKSharp.Functions
                     ResultMsg = ResultMsg,
                 };
 
-                tcs.TrySetResult(result);
+                waiter.SetResult(result);
             }
         }
     }

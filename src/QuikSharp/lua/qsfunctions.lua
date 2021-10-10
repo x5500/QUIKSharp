@@ -581,7 +581,6 @@ end
 --- Функция предназначена для расчета максимально возможного количества лотов в заявке.
 -- При заданном параметре is_market=true, необходимо передать параметр price=0, иначе будет рассчитано максимально возможное количество лотов в заявке по цене price.
 function qsfunctions.calc_buy_sell(msg)
-	local bs = CalcBuySell
     local spl = split2(msg.data, "|")
     local class_code, sec_code, clientCode, account, price, is_buy, is_market = spl[1], spl[2], spl[3], spl[4], spl[5], spl[6], spl[7]
 	if is_buy == "True" then
@@ -594,13 +593,14 @@ function qsfunctions.calc_buy_sell(msg)
 	else
 		is_market = false
 	end
-    local qty, comiss = bs(class_code, sec_code, clientCode, account, tonumber(price), is_buy, is_market)
-    if qty ~= "" then
-        msg.data				= {}
-        msg.data.qty			= qty
-        msg.data.comission		= comiss
-    else
-		message("Ошибка функции CalcBuySell", 1)
+	local qty, comiss = CalcBuySell(class_code, sec_code, clientCode, account, tonumber(price), is_buy, is_market)
+    if comiss ~= nil then
+		msg.data = {}
+		msg.data.qty = qty
+		msg.data.comission = comiss
+	else
+		msg.data = nil
+		message("Error in call CalcBuySell (nil result)", 1)
     end
     return msg
 end
