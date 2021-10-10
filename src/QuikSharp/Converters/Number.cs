@@ -11,7 +11,7 @@ namespace QUIKSharp.Converters
     public static class Number<T>
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
-
+        private static readonly Type myType = typeof(T);
         public delegate T converterType(string value);
 
         private static readonly char[] separators = { ',', '.' };
@@ -20,18 +20,17 @@ namespace QUIKSharp.Converters
         public static readonly  converterType FromString;
         static Number()
         {
-            Type t = typeof(T);
-            var underlying = Nullable.GetUnderlyingType(t);
-            if (underlying != null) t = underlying;
+            var underlying = Nullable.GetUnderlyingType(myType);
+            if (underlying != null) myType = underlying;
 
-            if (t.IsValueType)
+            if (myType.IsValueType)
             {
-                if ((t == typeof(decimal)) || (t == typeof(float)) || (t == typeof(double)))
+                if ((myType == typeof(decimal)) || (myType == typeof(float)) || (myType == typeof(double)))
                     FromString = value => ConvertToRealType(value);
                 else
                     FromString = value => ConvertToIntegralType(value);
             }
-            else if (t.IsEnum)
+            else if (myType.IsEnum)
                 FromString = value => ConvertToIntegralType(value);
             else
                 FromString = value => ConvertOther(value);
@@ -64,7 +63,7 @@ namespace QUIKSharp.Converters
                     byte[] dst_bytes = new byte[8];
                     System.Buffers.Text.Base64.DecodeFromUtf8(src_bytes.Slice(2,12), dst_bytes, out _, out _);
                     var decoded = BitConverter.ToDouble(dst_bytes, 0);
-                    result = (T)Convert.ChangeType(decoded, typeof(T));
+                    result = (T)Convert.ChangeType(decoded, myType);
                     return true;
                 }
                 if (value.StartsWith("L="))
@@ -73,7 +72,7 @@ namespace QUIKSharp.Converters
                     byte[] dst_bytes = new byte[8];
                     System.Buffers.Text.Base64.DecodeFromUtf8(src_bytes.Slice(2, 12), dst_bytes, out _, out _);
                     var decoded = BitConverter.ToDouble(dst_bytes, 0);
-                    result = (T)Convert.ChangeType(decoded, typeof(T));
+                    result = (T)Convert.ChangeType(decoded, myType);
                     return true;
                 }
             }

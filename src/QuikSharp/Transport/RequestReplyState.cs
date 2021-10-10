@@ -26,6 +26,9 @@ namespace QUIKSharp.Transport
         /// </summary>
         internal Task<T> ResultTask { get => tcs.Task; }
 
+        /// <summary>
+        /// Static const value, if type T has interface to IWithLuaTimeStamp
+        /// </summary>
         private static readonly bool IsWithLuaTimeStamp;
         static RequestReplyState()
         {

@@ -300,11 +300,7 @@ namespace QUIKSharp.Transport
                 try
                 {
                     // Request(task) not waiting for response. (As usual: Already cancelled by user or timeout)
-                    if (!Responses.TryGetValue(rr.Id, out var tcs))
-                    {
-                        rr.SetException(new InvalidOperationException("SendTaskLoop: Request is not in wait response query"));
-                        continue;
-                    }
+                    if (!rr.IsWaitingForResponse) continue;
 
                     // Trace.WriteLine("Request: " + request);
                     // scenario: Quik is restarted or script is stopped
@@ -312,7 +308,7 @@ namespace QUIKSharp.Transport
                     // then we will iterate over messages and cancel expired ones
                     if (!rr.IsValid)
                     {
-                        tcs.SetException(new TimeoutException("SendTaskLoop: ValidUntilUTC is less than current time"));
+                        rr.SetException(new TimeoutException("Request message expired: ValidUntilUTC is less than current time"));
                         continue;
                     }
 

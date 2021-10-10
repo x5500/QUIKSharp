@@ -33,8 +33,9 @@ namespace QUIKSharp.Transport
         /// Log to Trace only about cases exceed this threshold in ms.
         /// </summary>
         public static double PerfomanceLogThreshholdMS { get; set; } = 50.0;
-        public long Id => RequestMsg.Id;
-        public bool IsValid => !RequestMsg.ValidUntil.HasValue || RequestMsg.ValidUntil >= DateTime.UtcNow;
+        public long Id  => RequestMsg.Id;
+        public bool IsValid => RequestMsg.IsValid();
+        public bool IsWaitingForResponse => (TaskStatus == TaskStatus.WaitingForActivation || TaskStatus == TaskStatus.WaitingToRun);
         protected CancellationTokenSource _cts { get; }
         internal RequestReplyStateBase(IMessage request, Type responseType, CancellationToken task_cancel, CancellationToken service_stop, TimeSpan sendTimeout)
         {
@@ -44,13 +45,9 @@ namespace QUIKSharp.Transport
             this.service_stop = service_stop;
             _cts = CancellationTokenSource.CreateLinkedTokenSource(task_cancel, service_stop);
             _cts.Token.Register(OnInternalCancellation, useSynchronizationContext: false);
-
-            var lifetime = DateTime.UtcNow - RequestMsg.ValidUntil;
-            if ((sendTimeout.TotalSeconds > 0) && (!lifetime.HasValue || (lifetime.Value > sendTimeout)))
-                lifetime = sendTimeout;
             
-            if (lifetime.HasValue)
-                this.CancelAfter(lifetime.Value);
+            if (sendTimeout.TotalSeconds > 0)
+                this.CancelAfter(sendTimeout);
 
             if (EnablePerfomanceLog)
                 execution_ticks = DateTime.Now.Ticks;
@@ -84,7 +81,7 @@ namespace QUIKSharp.Transport
                 if (string.Compare(RequestMsg.Command, responseMsg.Command, true) != 0)
                     this.SetException(new Exception($"SendAsync: Fatal exception: response.Command[{responseMsg.Command}] != request.command[{RequestMsg.Command}]"));
                 else
-                if (responseMsg.ValidUntil.HasValue && responseMsg.ValidUntil < DateTime.UtcNow)
+                if (!responseMsg.IsValid())
                     this.SetException(new TimeoutException($"Respose message (Id:{responseMsg.Id}, cmd:{cmd}) expired! ValidUntilUTC is less than current time"));
                 else
                 {

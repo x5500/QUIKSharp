@@ -27,6 +27,15 @@ namespace QUIKSharp
         /// </summary>
         DateTime? ValidUntil { get; set; }
 
+        /// <summary>
+        /// Some messages are valid only for a short time, e.g. buy/sell orders
+        /// </summary>
+        /// <returns></returns>
+        bool IsValid();
+
+        /// <summary>
+        /// Request/Response data
+        /// </summary>
         object Data { get; set; }
     }
 }

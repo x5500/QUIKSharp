@@ -55,6 +55,8 @@ namespace QUIKSharp.Transport
             ValidUntil = validUntil;
             Data = message;
         }
+
+        public bool IsValid() => !this.ValidUntil.HasValue || (this.ValidUntil > DateTime.UtcNow);
     }
 
     internal class MessageS : Message<string>
