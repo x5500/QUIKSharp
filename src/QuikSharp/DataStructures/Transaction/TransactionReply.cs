@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json;
+using System;
 
 namespace QUIKSharp.DataStructures.Transaction
 {
@@ -70,7 +71,7 @@ namespace QUIKSharp.DataStructures.Transaction
         /// Номер заявки
         /// </summary>
         [JsonProperty("order_num")]
-        public long? OrderNum { get; set; }
+        public ulong? OrderNum { get; set; }
 
         /// <summary>
         /// Цена

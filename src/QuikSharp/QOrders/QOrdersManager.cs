@@ -33,6 +33,15 @@ namespace QUIKSharp.QOrders
         public QOrdersActionType action;
         public CancellationToken cancellationToken;
         public QOrder qOrder;
+        /// <summary>
+        /// Для перемещения ордеров
+        /// </summary>
+        public decimal new_price;
+        /// <summary>
+        /// Для перемещения ордеров
+        /// </summary>
+        public long new_qty;
+        public int retry;
     }
 
     public class LimitOrderEventArgs : EventArgs
@@ -47,7 +56,7 @@ namespace QUIKSharp.QOrders
         /// <summary>
         /// Нужна таблица актуальных limit-заявок
         /// </summary>
-        public readonly ConcurrentDictionary<long, QLimitOrder> limit_orders = new ConcurrentDictionary<long, QLimitOrder>();
+        public readonly ConcurrentDictionary<ulong, QLimitOrder> limit_orders = new ConcurrentDictionary<ulong, QLimitOrder>();
 
         /// <summary>
         ///  Нужна таблица ответов о сделках на актуальные limit-заявки.
@@ -58,7 +67,7 @@ namespace QUIKSharp.QOrders
         /// <summary>
         /// Нужна таблица актуальных Stop-заявок
         /// </summary>
-        public readonly ConcurrentDictionary<long, QStopOrder> stop_orders = new ConcurrentDictionary<long, QStopOrder>();
+        public readonly ConcurrentDictionary<ulong, QStopOrder> stop_orders = new ConcurrentDictionary<ulong, QStopOrder>();
 
         /// <summary>
         /// Здесь храним связи между номерами отправленных транзакций и ордерами
@@ -129,7 +138,7 @@ namespace QUIKSharp.QOrders
                 }
                 catch (Exception e) 
                 {
-                    logger.Error(e, $"RequestTaskAction loop: {e.Message}");
+                    logger.Fatal(e, $"Exception in RequestTaskAction loop: {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
                 }
             }
         }
@@ -172,8 +181,22 @@ namespace QUIKSharp.QOrders
         /// <returns></returns>
         public async Task<QOrderActionResult> KillOrderAsync(QOrder qOrder, CancellationToken cancellation_token, int retry = 1)
         {
-            if (qOrder.Killstate == QOrderKillState.NoKill)
-                qOrder.Killstate = QOrderKillState.WaitKill;
+            switch (qOrder.KillMoveState)
+            {
+                case QOrderKillMoveState.ErrorRejected:
+                case QOrderKillMoveState.NoKill:
+                case QOrderKillMoveState.WaitMove:
+                    qOrder.KillMoveState = QOrderKillMoveState.WaitKill;
+                    break;
+                case QOrderKillMoveState.WaitKill:
+                    break;
+                case QOrderKillMoveState.RequestedKill:
+                case QOrderKillMoveState.RequestedMove:
+                    // Already in process
+                    return new QOrderActionResult() { Result = false, ResultMsg = "Already executing KillOrder Task: " + qOrder.KillMoveState.ToString() }; ;
+                case QOrderKillMoveState.Killed:
+                    return new QOrderActionResult() { Result = true, ResultMsg = "Order " + qOrder.State.ToString() }; ;
+            }
 
             CancellationToken my_cancellation_token;
             if (cancellation_token != CancellationToken.None)
@@ -188,7 +211,7 @@ namespace QUIKSharp.QOrders
 
             while (!cancellation.IsCancellationRequested)
             {
-                if (qOrder.Killstate != QOrderKillState.WaitKill)
+                if (qOrder.KillMoveState != QOrderKillMoveState.WaitKill)
                     break;
 
                 if (qOrder.State == QOrderState.None)
@@ -204,22 +227,16 @@ namespace QUIKSharp.QOrders
                 {
                     // Запрос на размещение еще не отправлен -> просто удаляем его из обработки
                     qOrder.State = QOrderState.Killed;
-                    qOrder.Killstate = QOrderKillState.Killed;
+                    qOrder.KillMoveState = QOrderKillMoveState.Killed;
                     // TODO: удалить из списка ожидающих отправку на размещение
                     return new QOrderActionResult() { Result = true, ResultMsg = "Order removed from Wait Query" }; ;
                 }
 
-                if (qOrder.State == QOrderState.WaitMove)
-                {
-                    // Отменяем этот запрос на перемещение
-                    qOrder.State = QOrderState.Placed;
-                }
-
-                if ((qOrder.State == QOrderState.RequestedPlacement) || (qOrder.State == QOrderState.RequestedMove) || (!qOrder.OrderNum.HasValue))
+                if ((qOrder.State == QOrderState.RequestedPlacement) || (!qOrder.OrderNum.HasValue))
                 {
                     // Отправлен запрос на размещение ордера, но ответ еще не пришел
                     // Прийдется дождаться ответа, получить номер ордера и сразу же отправить запрос на удаление
-                    qOrder.Killstate = QOrderKillState.WaitKill;
+                    qOrder.KillMoveState = QOrderKillMoveState.WaitKill;
                     // TODO: Как то ждать появления OrderNum
                     await Task.Delay(50, my_cancellation_token).ConfigureAwait(false);
                     continue;
@@ -229,14 +246,14 @@ namespace QUIKSharp.QOrders
                 {
                     // акутальный ордер, он размещен на бирже (и не находится в процессе размещения)
                     var t = qOrder.KillOrderTransaction();
-                    qOrder.Killstate = QOrderKillState.RequestedKill;
+                    qOrder.KillMoveState = QOrderKillMoveState.RequestedKill;
                     var timeoutCancel = new CancellationTokenSource(Timeout_ms);
                     var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(my_cancellation_token, timeoutCancel.Token);
                     var reply = await quik.Transactions.SendWaitTransactionAsync(t, linked_CTS.Token).ConfigureAwait(false);
                     switch (reply.Status)
                     {
                         case TransactionStatus.Success:
-                            qOrder.Killstate = QOrderKillState.Killed;
+                            qOrder.KillMoveState = QOrderKillMoveState.Killed;
                             if (reply.transReply != null)
                             {
                                 long Balance = reply.transReply.Balance.Value;
@@ -249,18 +266,18 @@ namespace QUIKSharp.QOrders
                         case TransactionStatus.TransactionException:
                         case TransactionStatus.QuikError:
                         case TransactionStatus.FailedToSend:
-                            qOrder.Killstate = QOrderKillState.ErrorRejected;
+                            qOrder.KillMoveState = QOrderKillMoveState.ErrorRejected;
                             Call_OnTransacError(QOrdersActionType.KIllOrder, qOrder, reply.ResultMsg);
                             return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
 
                         case TransactionStatus.TimeoutWaitReply:
                         case TransactionStatus.SendRecieveTimeout:
-                            qOrder.Killstate = QOrderKillState.WaitKill;
+                            qOrder.KillMoveState = QOrderKillMoveState.WaitKill;
                             Call_OnTransacError(QOrdersActionType.KIllOrder, qOrder, reply.ResultMsg);
                             if (Delay_on_Timeout > 0) await Task.Delay(Delay_on_Timeout, my_cancellation_token).ConfigureAwait(false);
                             continue;
                         case TransactionStatus.NoConnection:
-                            qOrder.Killstate = QOrderKillState.WaitKill;
+                            qOrder.KillMoveState = QOrderKillMoveState.WaitKill;
                             // TODO: Надо придумать алгоритм поведения при отсутствии связи, через сколько пробуем еще раз, чтобы не спамить
                             logger.Debug($"Call_OnNoConnection on action 'KillOrderAsync' for order {qOrder.ClassCode}:{qOrder.SecCode} {qOrder.Operation} {qOrder.Qty} qty on {qOrder.Price}");
                             await NotifyOnConnected.WaitAsync.ConfigureAwait(false);
@@ -270,7 +287,7 @@ namespace QUIKSharp.QOrders
 
                 if ((qOrder.State == QOrderState.Executed) || (qOrder.State == QOrderState.Killed))
                 {
-                    qOrder.Killstate = QOrderKillState.Killed;
+                    qOrder.KillMoveState = QOrderKillMoveState.Killed;
                     return new QOrderActionResult() { Result = true, ResultMsg = "Order " + qOrder.State.ToString() }; ;
                 }
                 // retry;
@@ -309,16 +326,37 @@ namespace QUIKSharp.QOrders
         }
 
         /// <summary>
-        /// Задача на перемещение Лимитного! ордера. Выполняется до результата (успех, ошибка, отмена)
-        /// Ордер по номеру OrderNum перемещается на цену Price и количество Qty указанные в параметрах qOrder
-        /// После успешного выполнения, новый OrderNum будет записан в qOrder.OrderNum
+        /// Задача на перемещение Лимитного ордера на срочном рынке. Выполняется до результата (успех, ошибка, отмена)
+        /// Ордер по номеру OrderNum перемещается на цену new_price и количество new_qty
+        /// После успешного выполнения, будет размещен новый лимитный ордер, а старый закрыт.
+        /// (По факту, биржа убивает старый лимитник и размещает новый, будет новый номер лимитника.)
         /// </summary>
         /// <param name="qOrder">Передвигаемый ордер</param>
+        /// <param name="new_price">Новая цена</param>
+        /// <param name="new_qty">Новое количество</param>
+        /// <param name="cancellation_token">Токен отмены задачи</param>
         /// <param name="retry">Количество попыток выполнить задачу</param>
-        /// <param name="cancellation_token">Внешний CancellationToken на отмену задачи</param>
         /// <returns></returns>
-        public async Task<QOrderActionResult> MoveLimOrderAsync(QLimitOrder qOrder, CancellationToken cancellation_token, int retry = 1)
+        public async Task<QOrderActionResult> MoveLimOrderAsync(QLimitOrder qOrder, decimal new_price, long new_qty, CancellationToken cancellation_token, int retry = 1)
         {
+            if (qOrder.State != QOrderState.Placed)
+                return new QOrderActionResult() { Result = false, ResultMsg = $"Order is not in placed state. [{qOrder.State}]" };
+
+            switch (qOrder.KillMoveState)
+            {
+                case QOrderKillMoveState.WaitKill:
+                case QOrderKillMoveState.RequestedKill:
+                case QOrderKillMoveState.Killed:
+                case QOrderKillMoveState.ErrorRejected:
+                    return new QOrderActionResult() { Result = false, ResultMsg = $"Can't move order: [{qOrder.KillMoveState}]" };
+                case QOrderKillMoveState.NoKill:
+                    // Let's work
+                    qOrder.KillMoveState = QOrderKillMoveState.WaitMove;
+                    break;
+                case QOrderKillMoveState.WaitMove:
+                case QOrderKillMoveState.RequestedMove:
+                    break;
+            }
 
             CancellationToken my_cancellation_token;
             if (cancellation_token != CancellationToken.None)
@@ -327,55 +365,85 @@ namespace QUIKSharp.QOrders
                 my_cancellation_token = my_cts.Token;
             }
             else
-            {
                 my_cancellation_token = cancellation.Token;
-            }
-
-            if (qOrder.State == QOrderState.Placed)
-                qOrder.State = QOrderState.WaitMove;
 
             while (!my_cancellation_token.IsCancellationRequested)
             {
-                if (qOrder.State != QOrderState.WaitMove)
+                if (qOrder.KillMoveState != QOrderKillMoveState.WaitMove)
                     return new QOrderActionResult() { Result = false, ResultMsg = "qOrder.State != QOrderState.WaitMove" };
 
                 if (retry-- <= 0)
                     break;
 
-                var t = qOrder.MoveOrderTransaction();
+                var t = qOrder.MoveOrderTransaction(new_price, new_qty);
                 var timeoutCancel = new CancellationTokenSource(Timeout_ms);
                 var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(my_cancellation_token, timeoutCancel.Token);
 
-                qOrder.State = QOrderState.RequestedMove;
+                qOrder.KillMoveState = QOrderKillMoveState.RequestedMove;
                 var reply = await quik.Transactions.SendWaitTransactionAsync(t, linked_CTS.Token).ConfigureAwait(false);
                 switch (reply.Status)
                 {
                     case TransactionStatus.Success:
-                        qOrder.State = QOrderState.Placed;
 
-                        long OrderNum = reply.transReply?.OrderNum ?? reply.OrderNum;
-                        if (OrderNum <= 0)
+                        ulong NewOrderNum = reply.transReply?.OrderNum ?? reply.OrderNum;
+                        if (NewOrderNum <= 0)
                             throw new ArgumentOutOfRangeException("OrderNum", "Expected OrderNum > 0");
-                        // Так как у нас ордер теперь имеет другой номер, то надо его перенести на другой ключ в Директории
+
+                        // Prev Order Killed. 
+                        // Небольшой хак, чтобы обеспечить последовательность вызова коллбеков:
+                        // 1. сначала о перемещении ордера.
+                        // 2. потом о снятии старого.
+                        // 3. потом о размещении нового.
+                        bool just_killed_old = false;
+                        bool just_placed_new = false;
+                        QLimitOrder newqOrder = null;
                         rwLock.EnterWriteLock();
                         try
                         {
-                            if (!limit_orders.TryRemove(qOrder.OrderNum.Value, out _))
-                                throw new NotImplementedException("OnMovedOrder: Failed to remove order from active_orders");
+                            just_killed_old = qOrder.State != QOrderState.Killed;
+                            if (just_killed_old)
+                                qOrder.SetQuikState(DataStructures.State.Canceled, true); // no call events
 
-                            qOrder.OrderNum = OrderNum;
-                            if (!limit_orders.TryAdd(OrderNum, qOrder))
-                                throw new NotImplementedException("OnMovedOrder: Failed to add order to active_orders");
+                            if (!limit_orders.TryGetValue(NewOrderNum, out newqOrder))
+                            {
+                                just_placed_new = true;
+                                newqOrder = new QLimitOrder(qOrder, CopyQtyMode.QtyLeft);
+                                newqOrder.OrderNum = NewOrderNum;
 
-                            if (reply.transReply != null)
-                                qOrder.UpdateFrom(reply.transReply);
+                                // Небольшой хак, чтобы обеспечить последовательность вызова коллбеков
+                                newqOrder.SetQuikState(DataStructures.State.Active, true); // no call events
+
+                                if (!limit_orders.TryAdd(NewOrderNum, newqOrder))
+                                    throw new Exception($"AddNewLimitOrder: Failed TryAdd order {NewOrderNum} to limit_orders");
+
+                                // При перемещении заявок, в TransReply поле Balance = 0.
+                                // Поэтому мы не используем функцию UpdateFrom(transReply), а заполняем поля тут.                            
+                                // Если мы получили ответ через TransReply, то обрабатываем поля из него
+                                if (reply.transReply != null)
+                                {
+                                    newqOrder.TransID = reply.transReply.TransID;
+                                    if (reply.transReply.Price.HasValue)
+                                        newqOrder.Price = reply.transReply.Price.Value;
+
+                                    if (reply.transReply.Quantity.HasValue)
+                                        newqOrder.SetQty(reply.transReply.Quantity.Value, reply.transReply.Quantity.Value);
+                                }
+                            }
                         }
                         finally
                         {
                             rwLock.ExitWriteLock();
                         }
 
-                        qOrder.CallEvent_OnMoved();
+                        // Небольшой хак, чтобы обеспечить последовательность вызова коллбеков:
+                        qOrder.CallEvent_OnMoved(newqOrder);
+
+                        if (just_killed_old)
+                            qOrder.CallEvent_OnKilled();
+
+                        if (just_placed_new)
+                            newqOrder.CallEvent_OnPlaced();
+
                         return new QOrderActionResult() { Result = true, ResultMsg = reply.ResultMsg };
 
                     case TransactionStatus.LuaException:
@@ -388,13 +456,13 @@ namespace QUIKSharp.QOrders
 
                     case TransactionStatus.TimeoutWaitReply:
                     case TransactionStatus.SendRecieveTimeout:
-                        qOrder.State = QOrderState.WaitMove;
+                        qOrder.KillMoveState = QOrderKillMoveState.WaitMove;
                         if (Delay_on_Timeout > 0) await Task.Delay(Delay_on_Timeout, my_cancellation_token).ConfigureAwait(false);
                         Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.ResultMsg);
                         break;
 
                     case TransactionStatus.NoConnection:
-                        qOrder.State = QOrderState.WaitMove;
+                        qOrder.KillMoveState = QOrderKillMoveState.WaitMove;
                         // TODO: Надо придумать алгоритм поведения при отсутствии связи, через сколько пробуем еще раз, чтобы не спамить
                         logger.Debug($"Call_OnNoConnection on action 'MoveOrderAsync' for order {qOrder.ClassCode}:{qOrder.SecCode} {qOrder.Operation} {qOrder.Qty} qty on {qOrder.Price}");
                         await NotifyOnConnected.WaitAsync.ConfigureAwait(false);
@@ -403,8 +471,8 @@ namespace QUIKSharp.QOrders
                 // Try one more time
             }
 
-            if (qOrder.State == QOrderState.WaitMove)
-                qOrder.State = QOrderState.Placed;
+            if (qOrder.KillMoveState == QOrderKillMoveState.WaitMove)
+                qOrder.KillMoveState = QOrderKillMoveState.NoKill;
             return new QOrderActionResult() { Result = false, ResultMsg = "Task cancelled." }; ;
         }
 
@@ -422,18 +490,7 @@ namespace QUIKSharp.QOrders
 
             if (qOrder.State == QOrderState.None)
                 qOrder.State = QOrderState.WaitPlacement;
-
-            CancellationToken my_cancellation_token;
-            if (cancellation_token != CancellationToken.None)
-            {
-                var my_cts = CancellationTokenSource.CreateLinkedTokenSource(cancellation_token, cancellation.Token);
-                my_cancellation_token = my_cts.Token;
-            }
-            else
-            {
-                my_cancellation_token = cancellation.Token;
-            }
-
+            
             while (!cancellation.IsCancellationRequested)
             {
                 if (retry-- <= 0)
@@ -444,8 +501,8 @@ namespace QUIKSharp.QOrders
 
                 var t = qOrder.PlaceOrderTransaction();
 
-                var timeoutCancel = new CancellationTokenSource(Timeout_ms);
-                var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(my_cancellation_token, timeoutCancel.Token);
+                var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(this.cancellation.Token, cancellation_token);
+                linked_CTS.CancelAfter(Timeout_ms);
                 qOrder.State = QOrderState.RequestedPlacement;
 
                 var trans_id = quik.Transactions.IdProvider.IdentifyTransaction(t);
@@ -468,7 +525,7 @@ namespace QUIKSharp.QOrders
                             {
                                 if (qorderByTransId.TryRemove(trans_id, out _))
                                 {
-                                    long OrderNum = reply.transReply?.OrderNum ?? reply.OrderNum;
+                                    ulong OrderNum = reply.transReply?.OrderNum ?? reply.OrderNum;
                                     if (OrderNum <= 0)
                                         throw new ArgumentOutOfRangeException("OrderNum", "Expected OrderNum > 0");
 
@@ -525,7 +582,13 @@ namespace QUIKSharp.QOrders
                         qorderByTransId.TryRemove(trans_id, out _);
 
                         Call_OnTransacError(QOrdersActionType.PlaceOrder, qOrder, reply.ResultMsg);
-                        if (Delay_on_Timeout > 0) await Task.Delay(Delay_on_Timeout, my_cancellation_token).ConfigureAwait(false);
+                        if (Delay_on_Timeout > 0)
+                        {
+                            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(this.cancellation.Token, cancellation_token))
+                            {
+                                await Task.Delay(Delay_on_Timeout, cts.Token).ConfigureAwait(false);
+                            }
+                        }
                         break;
 
                     case TransactionStatus.NoConnection:
@@ -582,7 +645,7 @@ namespace QUIKSharp.QOrders
         /// <param name="qOrder"></param>
         public void RequestKillOrder(QOrder qOrder)
         {
-            qOrder.Killstate = QOrderKillState.WaitKill;
+            qOrder.KillMoveState = QOrderKillMoveState.WaitKill;
             actionQuery.Add(new QOrdersAction
             {
                 action = QOrdersActionType.KIllOrder,
@@ -593,15 +656,20 @@ namespace QUIKSharp.QOrders
 
         /// <summary>
         /// Поместить в очередь на выполнение задачу
+        /// Переместить лимитный ордер на рынке FORTS. (По факту, биржа убивает старый лимитник и размещает новый, будет новый номер лимитника)
         /// </summary>
-        /// <param name="qOrder"></param>
-        public void RequestMoveOrder(QLimitOrder qOrder)
+        /// <param name="qOrder">Перемещаемый ордер (По факту, биржа убивает старый лимитник и размещает новый, будет новый номер лимитника)</param>
+        /// <param name="new_price">Новая цена</param>
+        /// <param name="new_qty">Новое количество</param>
+        public void RequestMoveOrder(QLimitOrder qOrder, decimal new_price, long new_qty)
         {
             actionQuery.Add(new QOrdersAction
             {
                 action = QOrdersActionType.MoveOrder,
                 qOrder = qOrder,
                 cancellationToken = CancellationToken.None,
+                new_price = new_price,
+                new_qty = new_qty,
             });
         }
 
@@ -675,13 +743,13 @@ namespace QUIKSharp.QOrders
                 switch (action.action)
                 {
                     case QOrdersActionType.PlaceOrder:
-                        return PlaceOrderAsync(action.qOrder, CancellationToken.None);
+                        return PlaceOrderAsync(action.qOrder, action.cancellationToken);
 
                     case QOrdersActionType.MoveOrder:
-                        return MoveLimOrderAsync((QLimitOrder)action.qOrder, CancellationToken.None);
+                        return MoveLimOrderAsync((QLimitOrder)action.qOrder, action.new_price, action.new_qty, action.cancellationToken);
 
                     case QOrdersActionType.KIllOrder:
-                        return KillOrderAsync(action.qOrder, CancellationToken.None);
+                        return KillOrderAsync(action.qOrder, action.cancellationToken);
 
                     default:
                         return Task.FromException(new InvalidOperationException($"QOrder ActionBlockConsumer Failed: Not implemented for '{action.action}'"));
@@ -689,7 +757,7 @@ namespace QUIKSharp.QOrders
             }
             catch (Exception e)
             {
-                logger.Error(e, "QOrder ActionBlockConsumer Exception: ");
+                logger.Fatal(e, $"Exception in ActionBlockConsumer: {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
                 return Task.FromException(e);
             }
         }
@@ -717,7 +785,7 @@ namespace QUIKSharp.QOrders
         /// <param name="noCallEvents">Не вызывать события на смену статуса ордера</param>
         private QLimitOrder AddNewLimitOrder(Order order, bool noCallEvents)
         {
-            QLimitOrder limitOrder = new QLimitOrder(order);
+            QLimitOrder limitOrder = new QLimitOrder(order, CopyQtyMode.Qty);
             if (!limit_orders.TryAdd(order.OrderNum, limitOrder))
                 throw new Exception($"AddNewLimitOrder: Failed TryAdd order {order.OrderNum} to limit_orders");
 

@@ -79,7 +79,7 @@ namespace QUIKSharp.Transport
                 //var response = jtoken.FromJToken(responseType) as IMessage;
                 var responseMsg = TypedFromJToken(jtoken) as IMessage;
                 if (string.Compare(RequestMsg.Command, responseMsg.Command, true) != 0)
-                    this.SetException(new Exception($"SendAsync: Fatal exception: response.Command[{responseMsg.Command}] != request.command[{RequestMsg.Command}]"));
+                    this.SetException(new Exception($"RequestReplyStateBase.SetResult: Fatal exception: response.Command[{responseMsg.Command}] != request.command[{RequestMsg.Command}]"));
                 else
                 if (!responseMsg.IsValid())
                     this.SetException(new TimeoutException($"Respose message (Id:{responseMsg.Id}, cmd:{cmd}) expired! ValidUntilUTC is less than current time"));
@@ -94,7 +94,7 @@ namespace QUIKSharp.Transport
             }
             catch (Exception e) // deserialization exception is possible
             {
-                logger.Error(e, $"Exception in 'SendAsync, processing response': {e.Message}");
+                logger.Error(e, $"RequestReplyStateBase.SetResult: Exception processing response': {e.Message}");
                 this.SetException(e);
             }
             return false;

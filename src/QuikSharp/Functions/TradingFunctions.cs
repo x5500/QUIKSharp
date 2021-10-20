@@ -107,14 +107,14 @@ namespace QUIKSharp.Functions
         public Task<List<Trade>> GetTrades(ISecurity security, CancellationToken cancellationToken)
         => QuikService.SendAsync<List<Trade>>(new MessageS(new string[] { security.ClassCode, security.SecCode }, "get_trades"), cancellationToken);
 
-        public Task<List<Trade>> GetTrades_by_OdrerNumber(long orderNum, CancellationToken cancellationToken)
+        public Task<List<Trade>> GetTrades_by_OdrerNumber(ulong orderNum, CancellationToken cancellationToken)
         => QuikService.SendAsync<List<Trade>>(new Message<string>(orderNum.ToString(), "get_Trades_by_OrderNumber"), cancellationToken);
 
         public Task<PortfolioInfo> GetPortfolioInfo(ITrader trader, CancellationToken cancellationToken)
-        => QuikService.SendAsync<PortfolioInfo>(new MessageS(new string[] { trader.FirmId, trader.ClientCode }, "getPortfolioInfo"), cancellationToken);
+        => QuikService.SendAsync<PortfolioInfo>(new MessageS(new string[] { trader.FirmId, trader.AccountID }, "getPortfolioInfo"), cancellationToken);
 
         public Task<PortfolioInfoEx> GetPortfolioInfoEx(ITrader trader, int limitKind, CancellationToken cancellationToken)
-        => QuikService.SendAsync<PortfolioInfoEx>(new MessageS(new string[] { trader.FirmId, trader.ClientCode, limitKind.ToString() }, "getPortfolioInfoEx"), cancellationToken);
+        => QuikService.SendAsync<PortfolioInfoEx>(new MessageS(new string[] { trader.FirmId, trader.AccountID, limitKind.ToString() }, "getPortfolioInfoEx"), cancellationToken);
 
         public Task<string> GetTrdAccByClientCode(ITrader trader, CancellationToken cancellationToken)
         => QuikService.SendAsync<string>(new MessageS(new string[] { trader.FirmId, trader.ClientCode }, "GetTrdAccByClientCode"), cancellationToken);

@@ -30,7 +30,7 @@ namespace QUIKSharp.Functions
     public struct TransactionWaitResult
     {
         public long TransId;
-        public long OrderNum;
+        public ulong OrderNum;
         public TransactionReply transReply;
         public TransactionStatus Status;
         public string ResultMsg;

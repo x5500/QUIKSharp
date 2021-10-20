@@ -19,7 +19,7 @@ namespace QUIKSharp.DataStructures.Transaction
         /// * Номер заявки в торговой системе
         /// </summary>
         [JsonProperty("order_num")]
-        public long OrderNum { get; set; }
+        public ulong OrderNum { get; set; }
 
         /// <summary>
         /// * Поручение/комментарий, обычно: код клиента/номер поручения
@@ -134,7 +134,7 @@ namespace QUIKSharp.DataStructures.Transaction
         /// * Номер заявки в торговой системе
         /// </summary>
         [JsonProperty("linkedorder")]
-        public long Linkedorder { get; set; }
+        public ulong Linkedorder { get; set; }
 
         /// <summary>
         /// Составное поле, дата и время окончания срока действия заявки.

@@ -58,13 +58,13 @@ namespace QUIKSharp.Helpers
             return list;
         }
 
-        public async Task RequestGroup(Quik quik, int group, CancellationToken cancellationToken)
+        public async Task RequestGroup(IQuik quik, int group, CancellationToken cancellationToken)
         {
             var list = this.Select(group);
             var Result = await quik.Trading.GetParamEx2Bulk(list, cancellationToken).ConfigureAwait(false);
             GetParamEx2Bulk.ParseResult(list, Result);
         }
-        public async Task RequestAll(Quik quik, CancellationToken cancellationToken)
+        public async Task RequestAll(IQuik quik, CancellationToken cancellationToken)
         {
             var list = this.Items;
             var Result = await quik.Trading.GetParamEx2Bulk(list, cancellationToken).ConfigureAwait(false);
@@ -103,8 +103,8 @@ namespace QUIKSharp.Helpers
                 {
                     if (valueType.IsEnum)
                     {
-                        if (typeof(string).IsInstanceOfType(pt.Value))
-                            new_value = (T)Enum.Parse(valueType, (string)pt.Value);
+                        if (pt.Value is string @string)
+                            new_value = (T)Enum.Parse(valueType, @string);
                         else
                             new_value = (T)Convert.ChangeType(pt.Value, typeof(Int32));
                     }

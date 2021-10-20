@@ -35,18 +35,13 @@ namespace QUIKSharp.Orders
         ///  Возможно заявка и будет выставлена, если ответ потерялся в сети по пути
         /// </summary>
         Timeout = 3,
-
-        /// <summary>
-        /// Task Cancelled
-        /// </summary>
-        TaskCancelled = 4,
     }
 
     public struct OrderResult
     {
         public OrderResultCode Result;
         public long? TransID;
-        public long? OrderNum;
+        public ulong? OrderNum;
         public string ResultMsg;
 
         /// <summary>
@@ -79,7 +74,8 @@ namespace QUIKSharp.Orders
             return quik.Transactions.SendWaitTransactionAsync(t, cancellationTokenSource.Token).ContinueWith<OrderResult>((tt) =>
             {
                 if (tt.IsCanceled)
-                    return new OrderResult { Result = OrderResultCode.TaskCancelled };
+                    throw new TaskCanceledException(tt);
+
                 if (tt.Exception != null)
                     throw tt.Exception;
 
@@ -297,7 +293,7 @@ namespace QUIKSharp.Orders
         /// </summary>
         /// <param name="trsec">Код класса инструмента, Код инструмента, Счет клиента</param>
         /// <param name="OrderNum">Номер заявки</param>
-        public Task<OrderResult> KillOrder(ITradeSecurity trsec, long OrderNum)
+        public Task<OrderResult> KillOrder(ITradeSecurity trsec, ulong OrderNum)
         {
             var t = new Transaction
             {
@@ -315,7 +311,7 @@ namespace QUIKSharp.Orders
         /// </summary>
         /// <param name="trsec">Код класса инструмента, Код инструмента, Счет клиента</param>
         /// <param name="OrderNum">Номер заявки</param>
-        public Task<OrderResult> KillStopOrder(ITradeSecurity trsec, long OrderNum)
+        public Task<OrderResult> KillStopOrder(ITradeSecurity trsec, ulong OrderNum)
         {
             var t = new Transaction
             {
@@ -422,7 +418,7 @@ namespace QUIKSharp.Orders
         /// <param name="new_qty"> Новое количество (если менять количество)</param>
         /// <param name="mode"> Режим перемещения </param>
         /// <returns>OrderResult - результат выполнения</returns>
-        public Task<OrderResult> MoveOrder(ITradeSecurity trsec, long OrderNum, decimal new_price, long new_qty, TransactionMode mode = TransactionMode.NewQty)
+        public Task<OrderResult> MoveOrder(ITradeSecurity trsec, ulong OrderNum, decimal new_price, long new_qty, TransactionMode mode = TransactionMode.NewQty)
         {
             var t = new Transaction
             {
@@ -478,7 +474,7 @@ namespace QUIKSharp.Orders
         /// <param name="new_price"> Новая цена</param>
         /// <param name="new_qty"> Новое количество (если менять количество)</param>
         /// <returns>OrderResult - результат выполнения</returns>
-        public Task<OrderResult> Move_Order(ITradeSecurity trsec, long OrderNum, decimal new_price, long? new_qty)
+        public Task<OrderResult> Move_Order(ITradeSecurity trsec, ulong OrderNum, decimal new_price, long? new_qty)
         {
             var t = new Transaction
             {

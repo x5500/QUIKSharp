@@ -159,8 +159,8 @@ namespace QUIKSharp.QOrders
             {
                 QuikState = new_state;
 
-                if ((Killstate != QOrderKillState.NoKill) && (Killstate != QOrderKillState.Killed))
-                    Killstate = QOrderKillState.Killed;
+                if ((KillMoveState != QOrderKillMoveState.NoKill) && (KillMoveState != QOrderKillMoveState.Killed))
+                    KillMoveState = QOrderKillMoveState.Killed;
 
 
                 if (CoOrder != null)

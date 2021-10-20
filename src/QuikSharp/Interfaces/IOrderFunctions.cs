@@ -11,13 +11,13 @@ namespace QUIKSharp
 {
     public interface IOrderFunctions
     {
-        Task<Order> GetOrder(string classCode, long orderId, CancellationToken cancellationToken);
+        Task<Order> GetOrder(string classCode, ulong orderId, CancellationToken cancellationToken);
 
         Task<List<Order>> GetOrders(CancellationToken cancellationToken);
 
         Task<List<Order>> GetOrders(ISecurity sec, CancellationToken cancellationToken);
 
-        Task<Order> GetOrder_by_Number(long order_num, CancellationToken cancellationToken);
+        Task<Order> GetOrder_by_Number(ulong order_num, CancellationToken cancellationToken);
 
         Task<Order> GetOrder_by_transID(ISecurity sec, long trans_id, CancellationToken cancellationToken);
 

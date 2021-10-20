@@ -3,6 +3,7 @@
 
 using QUIKSharp.DataStructures;
 using QUIKSharp.DataStructures.Transaction;
+using System;
 
 namespace QUIKSharp.QOrders
 {
@@ -12,7 +13,7 @@ namespace QUIKSharp.QOrders
         /// Для SL, TP, TPSL: Номер ордера (лимитного), к которому привязан (и зависит от него) этот стоп-ордер
         /// Для QStopOrderWLinked - Номер ордера (лимитного), который привязан и зависит от этого стоп-ордера
         /// </summary>
-        public long CoOrderNum { get; set; } = 0;
+        public ulong CoOrderNum { get; set; } = 0;
         public QLimitOrder CoOrder { get; protected set; }
         /// <summary>
         /// Является ли Стоп-Ордером, активируемым по исполнению связанного ордера
@@ -22,7 +23,7 @@ namespace QUIKSharp.QOrders
         /// <summary>
         /// Номер заявки в торговой системе, зарегистрированной по наступлению условия стоп-цены.
         /// </summary>
-        public long ChildLimitOrderNum { get; private set; }
+        public ulong ChildLimitOrderNum { get; private set; }
 
         /// <summary>
         /// Лимитный ордер, который был инициирован этим стоп-ордером.
@@ -180,8 +181,8 @@ namespace QUIKSharp.QOrders
                     else
                         SetState(QOrderState.Killed, noCallEvents);
 
-                    if ((Killstate != QOrderKillState.NoKill) && (Killstate != QOrderKillState.Killed))
-                        Killstate = QOrderKillState.Killed;
+                    if ((KillMoveState != QOrderKillMoveState.NoKill) && (KillMoveState != QOrderKillMoveState.Killed))
+                        KillMoveState = QOrderKillMoveState.Killed;
                     break;
 
                 case QUIKSharp.DataStructures.State.Completed:

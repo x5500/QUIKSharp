@@ -67,21 +67,6 @@ namespace QUIKSharp.Functions
         }
 
         /// <summary>
-        /// Выставляем TRANS_ID для транзакции
-        /// </summary>
-        /// <param name="transaction"></param>
-        /// <returns></returns>
-        public void SetTransactionId(Transaction transaction)
-        {
-            if (IdProvider == null)
-                throw new NullReferenceException("SendWaitTransactionAsync: idProvider == null");
-
-            if (transaction == null)
-                throw new NullReferenceException("SendWaitTransactionAsync: transaction == null");
-
-            transaction.TRANS_ID = IdProvider.IdentifyTransaction(transaction);
-        }
-        /// <summary>
         /// Функция отправляет транзакцию на сервер QUIK и возвращает true в случае успеха,
         /// в случае неудачи возращает false и текст ошибки в свойтве ErrorMessage транзакции.
         /// </summary>
@@ -126,20 +111,20 @@ namespace QUIKSharp.Functions
                 if (_st.Exception != null)
                 {
                     var e = _st.Exception.InnerException;
-                    if (typeof(TransactionException).IsInstanceOfType(e))
+                    if (e is TransactionException)
                     {
                         if (logger.IsDebugEnabled)
                             logger.Debug("SendTransactionAsync TransactionException: " + e.Message);
                         return new TransactionResult { Result = TransactionStatus.TransactionException, ResultMsg = e.Message, TransId = TRANS_ID };
                     }
                     else
-                    if (typeof(TimeoutException).IsInstanceOfType(e))
+                    if (e is TimeoutException)
                     {
                         // Не дождались отправки/получения , задача завершена по таймауту
                         var ResultMsg = "Timeout while SendTransactionAsync using service Quik";
                         return new TransactionResult { Result = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg, TransId = TRANS_ID };
                     }
-                    if (typeof(TaskCanceledException).IsInstanceOfType(e))
+                    if (e is TaskCanceledException)
                     {
                         throw e;
                     }
@@ -150,7 +135,7 @@ namespace QUIKSharp.Functions
                         throw e;
                     }
                 }
-                var msg = string.Concat("SendTransactionAsync (TRANS_ID: ", TRANS_ID, ") Unhandled behavior! ");
+                var msg = $"SendTransactionAsync SendAsync Result Task[{_st.Status}]: Unhandled behavior!";
                 logger.Fatal(msg);
                 throw new Exception(msg);
             }, TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
@@ -214,20 +199,13 @@ namespace QUIKSharp.Functions
             var request_task = QuikService.SendAsync<bool>(new Message<Transaction>(t, "sendTransaction"), cancellationToken);
             var waiter = new TransactionResultWaiter(request_task, cancellationToken);
             if (!Transactions.TryAdd(TRANS_ID, waiter))
-            {
                 throw new Exception("Can't add QTransaction (TRANS_ID:  " + TRANS_ID + ") to Transactions dictionary");
-            }
-            
+
             // Clearance on task complete/cancelled/failed
-            _ = waiter.ResultTask.ContinueWith((w, id) =>
-            {
-                Transactions.TryRemove((long)id, out var temp);
-            }, TRANS_ID);
+            _ = waiter.ResultTask.ContinueWith((w, id) => Transactions.TryRemove((long)id, out var temp), state: TRANS_ID,
+                continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
 
-            request_task.ContinueWith(OnRequestResult, state: waiter, continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
-            return waiter.ResultTask;
-
-            void OnRequestResult(Task<bool> rt, object w)
+            request_task.ContinueWith((Task<bool> rt, object w) =>
             {
                 var _waiter = w as TransactionResultWaiter;
                 if (rt.Status == TaskStatus.RanToCompletion)
@@ -238,6 +216,7 @@ namespace QUIKSharp.Functions
                         logger.ConditionalDebug(ResultMsg);
                         _waiter.SetResult(new TransactionWaitResult { transReply = null, Status = TransactionStatus.FailedToSend, ResultMsg = ResultMsg });
                     }
+                    return; // All OK.
                 }
                 else
                 if (rt.IsCanceled)
@@ -245,25 +224,25 @@ namespace QUIKSharp.Functions
                     _waiter.SetException(new TaskCanceledException());
                 }
                 else
-                if (rt.IsFaulted && (rt.Exception != null))
+                if (rt.Exception != null)
                 {
                     var e = rt.Exception.InnerException;
-                    if (typeof(TransactionException).IsInstanceOfType(e))
+                    if (e is TransactionException)
                     {
                         if (logger.IsDebugEnabled)
                             logger.Debug("TransactionException: " + e.Message);
 
                         var status = (e.Message == "Not connected") ? TransactionStatus.NoConnection : TransactionStatus.TransactionException;
-                        _waiter.SetResult( new TransactionWaitResult { transReply = null, Status = status, ResultMsg = e.Message });
+                        _waiter.SetResult(new TransactionWaitResult { transReply = null, Status = status, ResultMsg = e.Message });
                     }
                     else
-                    if (typeof(TimeoutException).IsInstanceOfType(e))
+                    if (e is TimeoutException)
                     {
                         // Не дождались отправки/получения , задача завершена по таймауту
                         var ResultMsg = "Timeout while SendTransaction using service Quik";
                         _waiter.SetResult(new TransactionWaitResult { transReply = null, Status = TransactionStatus.SendRecieveTimeout, ResultMsg = ResultMsg });
                     }
-                    if (typeof(TaskCanceledException).IsInstanceOfType(e))
+                    if (e is TaskCanceledException)
                     {
                         _waiter.SetException(e);
                     }
@@ -274,7 +253,14 @@ namespace QUIKSharp.Functions
                         _waiter.SetException(rt.Exception);
                     }
                 }
-            }
+                var msg = $"SendWaitTransactionAsync WaiterTask[{rt.Status}]: Unhandled behavior!";
+                logger.Fatal(msg);
+                throw new Exception(msg);
+            },
+            state: waiter,
+            continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.ExecuteSynchronously);
+
+            return waiter.ResultTask;
         }
 
         /// <summary>

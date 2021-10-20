@@ -188,9 +188,14 @@ namespace QUIKSharp.DataStructures
         PRICEMIN,
 
         /// <summary>
-        /// Количество открытых позиций
+        /// Количество открытых позиций, DEPRECATED, Use openintr
         /// </summary>
         NUMCONTRACTS,
+
+        /// <summary>
+        /// Количество открытых позиций
+        /// </summary>
+        openintr,
 
         /// <summary>
         /// Гарантийное обеспечение покуптеля

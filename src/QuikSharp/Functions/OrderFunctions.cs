@@ -28,7 +28,7 @@ namespace QUIKSharp.Functions
         /// <param name="orderId">Номер заявки.</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public Task<Order> GetOrder(string classCode, long orderId, CancellationToken cancellationToken)
+        public Task<Order> GetOrder(string classCode, ulong orderId, CancellationToken cancellationToken)
         {
             var message = new MessageS(new string[] { classCode, orderId.ToString() }, "get_order_by_number");
             return QuikService.SendAsync<Order>(message, cancellationToken);
@@ -65,7 +65,7 @@ namespace QUIKSharp.Functions
         /// <summary>
         /// Возвращает заявку по номеру.
         /// </summary>
-        public Task<Order> GetOrder_by_Number(long order_num, CancellationToken cancellationToken)
+        public Task<Order> GetOrder_by_Number(ulong order_num, CancellationToken cancellationToken)
         {
             var message = new Message<string>(order_num.ToString(), "getOrder_by_Number");
             return QuikService.SendAsync<Order>(message, cancellationToken);

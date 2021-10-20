@@ -9,7 +9,16 @@ using System;
 
 namespace QUIKSharp.QOrders
 {
+
+    public enum CopyQtyMode
+    {
+        Qty,
+        QtyLeft,
+        QtyTraded,
+    }
+
     public delegate void QOrderDelegate(QOrder sender);
+    public delegate void QOrderDelegateMoved(QLimitOrder sender, QLimitOrder newOrder);
     public delegate void QOrderDelegateQty(QOrder sender, long last_filled_qty);
     public abstract class QOrder : ICloneable
     {
@@ -23,7 +32,7 @@ namespace QUIKSharp.QOrders
         /// Номер размещенного в системе Ордера
         /// Если стоп-заявка активна, то ее номер, если исполнена и при ее исполнении появился лимитный ордер - то его номер
         /// </summary>
-        public long? OrderNum { get; set; }
+        public ulong? OrderNum { get; set; }
 
         /// <summary>
         /// Номер транзакции, с помощью которой был размещен этот ордер
@@ -84,9 +93,9 @@ namespace QUIKSharp.QOrders
         /// <summary>
         ///  Состояние отмены ордера
         /// </summary>
-        private QOrderKillState _killstate;
+        private QOrderKillMoveState _killstate;
 
-        public QOrderKillState Killstate { get => _killstate; set { _killstate = value; KillstateUpdated = DateTime.Now; } }
+        public QOrderKillMoveState KillMoveState { get => _killstate; set { _killstate = value; KillstateUpdated = DateTime.Now; } }
 
         /// <summary>
         /// Дата и время последнего обновления Killstate
@@ -138,7 +147,30 @@ namespace QUIKSharp.QOrders
             this.QtyTraded = 0;
 
             _state = QOrderState.None;
-            Killstate = QOrderKillState.NoKill;
+            KillMoveState = QOrderKillMoveState.NoKill;
+        }
+        public QOrder(QOrder copy_from, CopyQtyMode copyQty)
+        {
+            this.TradeSecurity = copy_from.TradeSecurity;
+            this.Operation = copy_from.Operation;
+            this.Price = copy_from.Price;
+            switch (copyQty)
+            {
+                case CopyQtyMode.Qty:
+                    this._qty = copy_from.Qty;
+                    break;
+                case CopyQtyMode.QtyLeft:
+                    this._qty = copy_from.QtyLeft;
+                    break;
+                case CopyQtyMode.QtyTraded:
+                    this._qty = copy_from.QtyTraded;
+                    break;
+            }
+            this.QtyLeft = this._qty;
+            this.QtyTraded = 0;
+
+            _state = QOrderState.None;
+            KillMoveState = QOrderKillMoveState.NoKill;
         }
 
         /// <summary>
@@ -248,8 +280,8 @@ namespace QUIKSharp.QOrders
                     break;
 
                 case QUIKSharp.DataStructures.State.Canceled:
-                    if ((Killstate != QOrderKillState.NoKill) && (Killstate != QOrderKillState.Killed))
-                        Killstate = QOrderKillState.Killed;
+                    if ((KillMoveState != QOrderKillMoveState.NoKill) && (KillMoveState != QOrderKillMoveState.Killed))
+                        KillMoveState = QOrderKillMoveState.Killed;
                     SetState(QOrderState.Killed, noCallEvents);
                     break;
 
@@ -275,8 +307,9 @@ namespace QUIKSharp.QOrders
                     break;
                 // Immune: No change state.
                 case QOrderState.Filled:
-                case QOrderState.Killed:
                     throw new Exception($"No change state [{_state}] => [{new_state}]");
+                case QOrderState.Killed:
+                    return; // Ignore
                 case QOrderState.Placed:
                     switch (new_state)
                     {   // Immune: Allowed only:
@@ -284,8 +317,6 @@ namespace QUIKSharp.QOrders
                         case QOrderState.ErrorRejected:
                         case QOrderState.Filled:
                         case QOrderState.Killed:
-                        case QOrderState.WaitMove:
-                        case QOrderState.RequestedMove:
                             break;
                         default:
                             throw new Exception($"No change state [{_state}] => [{new_state}]");
@@ -296,19 +327,6 @@ namespace QUIKSharp.QOrders
                     {   // Immune: Allowed only:
                         case QOrderState.Filled:
                         case QOrderState.Killed:
-                            break;
-                        default:
-                            throw new Exception($"No change state [{_state}] => [{new_state}]");
-                    }
-                    break;
-                case QOrderState.WaitMove:
-                case QOrderState.RequestedMove:
-                    switch (new_state)
-                    {   // Immune: Allowed only:
-                        case QOrderState.WaitMove:
-                        case QOrderState.RequestedMove:
-                        case QOrderState.ErrorRejected:
-                        case QOrderState.Placed:
                             break;
                         default:
                             throw new Exception($"No change state [{_state}] => [{new_state}]");
@@ -343,12 +361,12 @@ namespace QUIKSharp.QOrders
             }
         }
 
-        protected void CallEvent_OnPlaced()
+        internal void CallEvent_OnPlaced()
         {
             OnPlaced?.Invoke(this);
         }
 
-        protected void CallEvent_OnKilled()
+        internal void CallEvent_OnKilled()
         {
             OnKilled?.Invoke(this);
         }

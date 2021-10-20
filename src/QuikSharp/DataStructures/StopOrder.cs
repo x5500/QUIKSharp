@@ -23,7 +23,7 @@ namespace QUIKSharp.DataStructures
         /// * Регистрационный номер стоп-заявки на сервере QUIK
         /// </summary>
         [JsonProperty("order_num")]
-        public long OrderNum { get; set; }
+        public ulong OrderNum { get; set; }
 
         /// <summary>
         /// * Набор битовых флагов.
@@ -71,7 +71,7 @@ namespace QUIKSharp.DataStructures
         /// * Номер заявки в торговой системе, зарегистрированной по наступлению условия стоп-цены.
         /// </summary>
         [JsonProperty("linkedorder")]
-        public long LinkedOrder { get; set; }
+        public ulong LinkedOrder { get; set; }
 
         /// <summary>
         ///  * NUMBER  Дата окончания срока действия заявки
@@ -96,7 +96,7 @@ namespace QUIKSharp.DataStructures
         /// * NUMBER  Связанная заявка
         /// </summary>
         [JsonProperty("co_order_num")]
-        public long co_order_num { get; set; }
+        public ulong co_order_num { get; set; }
 
         /// <summary>
         /// * NUMBER  Цена связанной заявки

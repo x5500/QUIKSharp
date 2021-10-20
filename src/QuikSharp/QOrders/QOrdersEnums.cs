@@ -43,34 +43,37 @@ namespace QUIKSharp.QOrders
         /// Ордер снят
         /// </summary>
         Killed,
-
-        /// <summary>
-        /// WAITMOVE -> RequestedMove -> Placed
-        /// </summary>
-        WaitMove,
-
-        /// <summary>
-        /// WaitMove -> REQUESTEDMOVE -> Placed
-        /// </summary>
-        RequestedMove,
     }
 
-    public enum QOrderKillState
+    public enum QOrderKillMoveState
     {
+        /// <summary>
+        /// [NoKill] -> WaitKill/WaitMove -> RequestedKill/requestedMove -> killed
+        /// </summary>
         NoKill,
 
         /// <summary>
-        /// NoKill -> WAITKILL / WaitOrderNum -> RequestedKill -> killed
+        /// NoKill -> [WaitKill]/WaitMove -> RequestedKill/requestedMove -> killed
         /// </summary>
         WaitKill,
 
         /// <summary>
-        /// NoKill -> Waitkill / WaitOrderNum -> REQUESTEDKILL -> killed
+        /// NoKill -> WaitKill/[WaitMove] -> RequestedKill/requestedMove -> killed
+        /// </summary>
+        WaitMove,
+
+        /// <summary>
+        /// NoKill -> WaitKill/WaitMove -> [RequestedKill]/requestedMove -> killed
         /// </summary>
         RequestedKill,
 
         /// <summary>
-        /// NoKill -> Waitkill / WaitOrderNum -> RequestedKill -> KILLED
+        /// NoKill -> WaitKill/WaitMove -> RequestedKill/[requestedMove] -> killed
+        /// </summary>
+        RequestedMove,
+
+        /// <summary>
+        /// NoKill -> WaitKill/WaitMove -> RequestedKill/requestedMove -> [killed]
         /// </summary>
         Killed,
 

@@ -2,7 +2,6 @@
 // Based on QUIKSharp, Authors https://github.com/finsight/QUIKSharp/blob/master/AUTHORS.md.
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
 using QUIKSharp.Converters;
@@ -11,6 +10,7 @@ using QUIKSharp.DataStructures.Transaction;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -105,10 +105,20 @@ namespace QUIKSharp.Transport
         /// <param name="startCorrelationId">Стартовое значение.</param>
         internal static void InitializeCorrelationId(int startCorrelationId) => _correlationId = startCorrelationId;
 
-        public static void EnablePerfomanceLog(bool Enable)
-        {
-            RequestReplyState<JToken>.EnablePerfomanceLog = Enable;
+        /// <summary>
+        /// EnablePerfomanceLog: Логировать инфоормацию о событиях, обработка которых заняла более PerfomanceLogThreshholdMS ms.
+        /// </summary>
+        public static bool EnablePerfomanceLog { get => _enable_perfomanceLog; set => SetPerfomanceLog(value); }
+        internal static bool _enable_perfomanceLog = logger.IsTraceEnabled;
+        private static void SetPerfomanceLog(bool value)
+        { 
+            _enable_perfomanceLog = value;
+            RequestReplyState<JToken>.EnablePerfomanceLog = value;
         }
+        /// <summary>
+        /// EnablePerfomanceLog: Логировать инфоормацию о событиях, обработка которых заняла более PerfomanceLogThreshholdMS ms.
+        /// </summary>
+        public static long PerfomanceLogThreshholdMS = 10;
 
         /// <summary>
         /// Создает экземпляр QuikService
@@ -153,7 +163,7 @@ namespace QUIKSharp.Transport
         private Task _requestTask;
         private Task _responseTask;
         private Task _callbackReceiverTask;
-
+        private Task _callbackCallerTask;
         private CancellationTokenSource StopAllCancellation;
 
         /// <summary>
@@ -175,6 +185,9 @@ namespace QUIKSharp.Transport
         /// <summary>
         /// Get network stats
         /// </summary>
+        private readonly ConcurrentQueue<string> CallbackQueue = new ConcurrentQueue<string>();
+        private readonly ManualResetEventSlim CallbackQueue_Avail = new ManualResetEventSlim(false);
+
         public void GetNetStats(out ServiceNetworkStats networkStats)
         {
             networkStats.bytes_sent = bytes_sent_request;
@@ -182,6 +195,7 @@ namespace QUIKSharp.Transport
             networkStats.bytes_callback = bytes_recieved_callback;
             networkStats.requests_query_size = Responses.Count;
             networkStats.send_query_size = SendQueue.Count;
+            networkStats.callback_wait_query = CallbackQueue.Count;
         }
         // ----------------------------------- Async Workers ------------------------------------------------------------------------------
         /// <summary>
@@ -197,15 +211,75 @@ namespace QUIKSharp.Transport
             // NB we use the token for signalling, could use a simple TCS
             var task_options = TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach | TaskCreationOptions.PreferFairness;
             // Request Task
-            _requestTask = Task.Factory.StartNew(() => Socket_Main_Loop(SendTaskIOLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
+            _requestTask = Task.Factory.StartNew(() => Socket_Main_Loop(SendTaskIOLoop), CancellationToken.None, task_options, TaskScheduler.Default);
             // Response Task
-            _responseTask = Task.Factory.StartNew(() => Socket_Main_Loop(ResponseTaskIOLoop),  CancellationToken.None, task_options, TaskScheduler.Default);
+            _responseTask = Task.Factory.StartNew(() => Socket_Main_Loop(ResponseTaskIOLoop), CancellationToken.None, task_options, TaskScheduler.Default);
             // Callback Task
             if (_callbackPort != 0)
+            {            
                 _callbackReceiverTask = Task.Factory.StartNew(() => Socket_Main_Loop(CallbackTaskIOLoop), CancellationToken.None, task_options, TaskScheduler.Default);
+                _callbackCallerTask = Task.Factory.StartNew(CallbackConsumerLoop, CancellationToken.None, task_options, TaskScheduler.Default);
+            }
             else
+            {
                 _callbackReceiverTask = Task.CompletedTask;
+                _callbackCallerTask = Task.CompletedTask;
+            }
         }
+
+        private void CallbackConsumerLoop()
+        {
+            var cancellationToken = StopAllCancellation.Token;
+            try
+            {
+
+                long execution_ticks = 0L;
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    if (!CallbackQueue.TryDequeue(out var callback_msg))
+                    {
+                        CallbackQueue_Avail.Reset();
+                        CallbackQueue_Avail.Wait(cancellationToken);
+                        continue;
+                    }
+                    if (EnablePerfomanceLog)
+                        execution_ticks = DateTime.Now.Ticks;
+
+                    ProcessCallbackMessage(callback_msg);
+
+                    if (EnablePerfomanceLog)
+                    {
+                        execution_ticks = DateTime.Now.Ticks - execution_ticks;
+                        TimeSpan ts = new TimeSpan(execution_ticks);
+                        double ms = ts.TotalMilliseconds;
+
+                        if (ms > PerfomanceLogThreshholdMS)
+                        {
+                            var ms_str = ms.ToString("F3", CultureInfo.InvariantCulture);
+                            logger.Trace($"PerfomanceLog: Callback invoke tooks: {ms_str} ms. for '{callback_msg}'");
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                logger.ConditionalTrace("CallbackConsumerLoop is cancelling");
+            }
+            catch (Exception e)
+            {
+                LogExceptionFatal(e, "CallbackConsumerLoop");
+                StopAllCancellation.Cancel();
+                throw new AggregateException($"Unhandled exception in CallbackConsumerLoop", e);
+            }
+        }
+
+        private static void LogExceptionFatal(Exception e, string func_name)
+        {
+            if (!logger.IsEnabled(LogLevel.Fatal))
+                return;
+            logger.Fatal(e, $"Unhandled exception in {func_name}: {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
+        }
+
         /// <summary>
         /// Stop service
         /// </summary>
@@ -223,7 +297,7 @@ namespace QUIKSharp.Transport
 
             // here all tasks must exit gracefully
             var timeout = SocketOperationTimeout + 5000;
-            var isCleanExit = Task.WaitAll(new[] { _requestTask, _responseTask, _callbackReceiverTask }, timeout);
+            var isCleanExit = Task.WaitAll(new[] { _requestTask, _responseTask, _callbackReceiverTask, _callbackCallerTask }, timeout);
             if (!isCleanExit)
                 logger.Error("All tasks must finish gracefully after cancellation token is cancelled!");
         }
@@ -250,7 +324,7 @@ namespace QUIKSharp.Transport
             catch (Exception e)
             {
                 var name = taskAction.GetMethodInfo().Name;
-                logger.Fatal(e, $"Unhandled exception in taskAction '{name}' : {e.Message}");
+                LogExceptionFatal(e, name);
                 StopAllCancellation.Cancel();
                 throw new AggregateException($"Unhandled exception in taskAction '{name}'", e);
             }
@@ -387,16 +461,10 @@ namespace QUIKSharp.Transport
                     string callback;
                     callback = reader.ReadLine();
                     if (callback == null) break;
-                    try
-                    {
-                        ProcessCallbackMessage(callback);
-                    }
-                    catch (Exception e) // deserialization exception is possible
-                    {
-                        logger.Error(e, $"Exception in 'CallbackTaskLoop': {e.Message}");
-                        logger.Error("Recieved JSON: " + callback);
-                    }
                     Interlocked.Add(ref bytes_recieved_callback, callback.Length);
+
+                    CallbackQueue.Enqueue(callback);
+                    CallbackQueue_Avail.Set();
                 }
                 catch (IOException ioe)
                 {
@@ -548,16 +616,36 @@ namespace QUIKSharp.Transport
                 if (rr.IsValid)
                     AddToQueue(rr);
         }
-        private void ProcessCallbackMessage(string callback)
+        /// <summary>
+        /// Throws: ArgumentOutOfRangeException
+        /// </summary>
+        /// <param name="callback"></param>
+        private void ProcessCallbackMessage(object callback)
         {
-            //Deserialize into a JObject
-            JToken jtoken = JObject.Parse(callback);
-            string command = (string)jtoken.SelectToken("cmd");
-            RequestReplyStateBase.ProcessMessageForLuaError(jtoken, command);
+            JToken jtoken = null;
+            string command;
+            try
+            {
+                //Deserialize into a JObject
+                jtoken = JObject.Parse(callback as string);
+                command = (string)jtoken.SelectToken("cmd");
+                RequestReplyStateBase.ProcessMessageForLuaError(jtoken, command);
+            }
+            catch (Exception e) // deserialization exception is possible
+            {
+                logger.Error(e, $"Exception in 'ProcessCallbackMessage': {e.Message}");
+                logger.Error("Recieved JSON: " + callback);
+                return;
+            }
 
             var parsed = Enum.TryParse<EventNames>(command, true, out var eventName);
             if (!parsed)
-                throw new InvalidOperationException("ProcessCallbackMessage: Unknown command in a message: " + command);
+            {
+                logger.Error($"ProcessCallbackMessage: Unknown EventName '{command}' in a message!");
+                return;
+                //throw new ArgumentOutOfRangeException("command", command, "ProcessCallbackMessage: Unknown command in a message!");
+            }
+
             try
             {
                 switch (eventName)
@@ -649,18 +737,21 @@ namespace QUIKSharp.Transport
                         throw new ArgumentOutOfRangeException("eventName", eventName, "Invalid event name or such event was not implemented");
                 }
             }
-            catch (ArgumentOutOfRangeException)
-            {
-                throw;
-            }
+            catch (TaskCanceledException) { } // Ignore
+            catch (OperationCanceledException) { } // ignore
             catch (TargetInvocationException tie)
             {
                 var e = tie.InnerException; // ex now stores the original exception
-                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{eventName}'].Invoke():  {e.Message}");
+                LogException(eventName, e);
             }
             catch (Exception e)
             {
-                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{eventName}'].Invoke():  {e.Message}");
+                LogException(eventName, e);
+            }
+
+            void LogException(EventNames event_name, Exception e)
+            {
+                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{event_name}'].Invoke():  {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
             }
         }
         public Task<TResult> SendAsync<TResult>(IMessage request) => SendAsync<TResult>(request, CancellationToken.None);
@@ -703,6 +794,7 @@ namespace QUIKSharp.Transport
                     _requestTask = null;
                     _responseTask = null;
                     _callbackReceiverTask = null;
+                    _callbackCallerTask = null;
                     SendQueue_Avail.Dispose();
                 }
                 // TODO: освободить неуправляемые ресурсы (неуправляемые объекты) и переопределить метод завершения

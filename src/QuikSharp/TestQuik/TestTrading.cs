@@ -182,7 +182,7 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        async Task<List<Trade>> ITradingFunctions.GetTrades_by_OdrerNumber(long orderNum, CancellationToken cancellationToken)
+        async Task<List<Trade>> ITradingFunctions.GetTrades_by_OdrerNumber(ulong orderNum, CancellationToken cancellationToken)
         {
             var l = new List<Trade>();
             foreach (var kv in TradeTable)

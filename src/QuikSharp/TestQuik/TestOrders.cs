@@ -14,8 +14,8 @@ namespace QUIKSharp.TestQuik
 {
     public class TestOrders : IOrderFunctions
     {
-        private readonly Dictionary<long, Order> orderTable = new Dictionary<long, Order>();
-        private readonly Dictionary<long, StopOrder> stopOrderTable = new Dictionary<long, StopOrder>();
+        private readonly Dictionary<ulong, Order> orderTable = new Dictionary<ulong, Order>();
+        private readonly Dictionary<ulong, StopOrder> stopOrderTable = new Dictionary<ulong, StopOrder>();
 
         public TestOrders()
         {
@@ -27,7 +27,7 @@ namespace QUIKSharp.TestQuik
             stopOrderTable.Clear();
         }
 
-        public Task<Order> GetOrder(string classCode, long orderId, CancellationToken cancellationToken)
+        public Task<Order> GetOrder(string classCode, ulong orderId, CancellationToken cancellationToken)
         {
             throw new System.NotImplementedException();
         }
@@ -53,7 +53,7 @@ namespace QUIKSharp.TestQuik
             return l;
         }
 
-        public async Task<Order> GetOrder_by_Number(long order_num, CancellationToken cancellationToken)
+        public async Task<Order> GetOrder_by_Number(ulong order_num, CancellationToken cancellationToken)
         {
             if (orderTable.TryGetValue(order_num, out var order))
                 return order;

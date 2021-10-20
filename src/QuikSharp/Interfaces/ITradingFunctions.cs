@@ -172,7 +172,7 @@ namespace QUIKSharp
         /// <param name="orderNum"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<List<Trade>> GetTrades_by_OdrerNumber(long orderNum, CancellationToken cancellationToken);
+        Task<List<Trade>> GetTrades_by_OdrerNumber(ulong orderNum, CancellationToken cancellationToken);
 
         /// <summary>
         ///  функция для получения значений параметров таблицы «Клиентский портфель»

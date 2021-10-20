@@ -273,7 +273,7 @@ namespace QUIKSharp.TestQuik
                 FirmID = t.FIRM_ID,
                 Brokerref = t.CLIENT_CODE,
                 Price = t.PRICE,
-                OrderNum = Interlocked.Increment(ref trans_id),
+                OrderNum = (ulong)Interlocked.Increment(ref trans_id),
                 Quantity = t.QUANTITY,
                 Balance = t.QUANTITY,
                 Status = TransactionReplyStatus.Executed,
@@ -325,7 +325,7 @@ namespace QUIKSharp.TestQuik
                     limOrder = new Order()
                     {
                         TransID = t.TRANS_ID.Value,
-                        OrderNum = Interlocked.Increment(ref trans_id),
+                        OrderNum = (ulong)Interlocked.Increment(ref trans_id),
                         SecCode = t.SecCode,
                         ClassCode = t.ClassCode,
                         ClientCode = t.CLIENT_CODE,
@@ -402,7 +402,7 @@ namespace QUIKSharp.TestQuik
             var Order = new Order()
             {
                 TransID = stopOrder.TransID,
-                OrderNum = Interlocked.Increment(ref trans_id),
+                OrderNum = (ulong)Interlocked.Increment(ref trans_id),
                 SecCode = stopOrder.SecCode,
                 ClassCode = stopOrder.ClassCode,
                 ClientCode = stopOrder.ClientCode,

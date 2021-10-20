@@ -35,6 +35,7 @@ namespace QUIKSharp.Converters
             };
             _serializer.Converters.Add(new NUMBER_Converter<decimal>());
             _serializer.Converters.Add(new NUMBER_Converter<double>());
+            _serializer.Converters.Add(new NUMBER_Converter<ulong>());
             _serializer.Converters.Add(new NUMBER_Converter<long>());
             _serializer.Converters.Add(new NUMBER_Converter<int>());
             _serializer.Converters.Add(new SafeEnumConverter());
@@ -189,7 +190,11 @@ namespace QUIKSharp.Converters
             return (underlying != null) && underlying.Equals(typeof(T));
         }
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) => JToken.FromObject(value.ToString()).WriteTo(writer);
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            JToken.FromObject(value.ToString()).WriteTo(writer);
+        }
+
         public override object ReadJson(JsonReader reader,
             Type objectType,
             object existingValue,

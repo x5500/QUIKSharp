@@ -23,7 +23,7 @@ namespace QUIKSharp.DataStructures.Transaction
         /// Номер заявки в торговой системе
         /// </summary>
         [JsonProperty("order_num")]
-        public long OrderNum { get; set; }
+        public ulong OrderNum { get; set; }
 
         /// <summary>
         /// Поручение/комментарий, обычно: код клиента/номер поручения

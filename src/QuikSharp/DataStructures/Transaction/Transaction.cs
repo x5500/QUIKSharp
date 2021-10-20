@@ -222,13 +222,13 @@ namespace QUIKSharp.DataStructures.Transaction
         /// Применяется при «ACTION» = «KILL_ORDER» или «ACTION» = «KILL_NEG_DEAL» или «ACTION» = «KILL_QUOTE»
         /// </summary>
         [JsonConverter(typeof(NUMBER_Converter<long?>))]
-        public long? ORDER_KEY { get; set; }
+        public ulong? ORDER_KEY { get; set; }
 
         /// <summary>
         /// Номер стоп-заявки, снимаемой из торговой системы. Применяется только при «ACTION» = «KILL_STOP_ORDER»
         /// </summary>
         [JsonConverter(typeof(NUMBER_Converter<long?>))]
-        public long? STOP_ORDER_KEY { get; set; }
+        public ulong? STOP_ORDER_KEY { get; set; }
 
         /// <summary>
         /// Код расчетов при исполнении внебиржевых заявок
@@ -322,7 +322,7 @@ namespace QUIKSharp.DataStructures.Transaction
         /// Регистрационный номер заявки-условия. Используется при «STOP_ORDER_KIND» = «ACTIVATED_BY_ORDER_SIMPLE_STOP_ORDER» или «ACTIVATED_BY_ORDER_TAKE_PROFIT_STOP_ORDER»
         /// </summary>
         [JsonConverter(typeof(NUMBER_Converter<long?>))]
-        public long? BASE_ORDER_KEY { get; set; }
+        public ulong? BASE_ORDER_KEY { get; set; }
 
         /// <summary>
         /// Признак использования в качестве объема заявки «по исполнению» исполненного количества бумаг заявки-условия. Возможные значения: «YES» или «NO». Используется при «STOP_ORDER_KIND» = «ACTIVATED_BY_ORDER_SIMPLE_STOP_ORDER» или «ACTIVATED_BY_ORDER_TAKE_PROFIT_STOP_ORDER»
@@ -355,7 +355,7 @@ namespace QUIKSharp.DataStructures.Transaction
         /// Номер первой заявки
         /// </summary>
         [JsonConverter(typeof(NUMBER_Converter<long?>))]
-        public long? FIRST_ORDER_NUMBER { get; set; }
+        public ulong? FIRST_ORDER_NUMBER { get; set; }
 
         /// <summary>
         /// Количество в первой заявке
@@ -373,7 +373,7 @@ namespace QUIKSharp.DataStructures.Transaction
         /// Номер второй заявки
         /// </summary>
         [JsonConverter(typeof(NUMBER_Converter<long?>))]
-        public long? SECOND_ORDER_NUMBER { get; set; }
+        public ulong? SECOND_ORDER_NUMBER { get; set; }
 
         /// <summary>
         /// Количество во второй заявке
