@@ -118,7 +118,7 @@ namespace QUIKSharp.Transport
         /// <summary>
         /// EnablePerfomanceLog: Логировать инфоормацию о событиях, обработка которых заняла более PerfomanceLogThreshholdMS ms.
         /// </summary>
-        public static long PerfomanceLogThreshholdMS = 10;
+        public static long PerfomanceLogThreshholdMS { get; set; } = 10;
 
         /// <summary>
         /// Создает экземпляр QuikService
@@ -360,8 +360,10 @@ namespace QUIKSharp.Transport
         {
             ResetToQueryAllWaitingMessages();
 
-            var stream = new NetworkStream(_responseClient.Client);
-            stream.WriteTimeout = SocketOperationTimeout;
+            var stream = new NetworkStream(_responseClient.Client)
+            {
+                WriteTimeout = SocketOperationTimeout
+            };
             var writer = new StreamWriter(stream);
             while (!cancelToken.IsCancellationRequested)
             {
@@ -404,8 +406,10 @@ namespace QUIKSharp.Transport
         private void ResponseTaskIOLoop(CancellationToken cancelToken)
         {
             // here we have a connected TCP client
-            var stream = new NetworkStream(_responseClient.Client);
-            stream.ReadTimeout = SocketOperationTimeout;
+            var stream = new NetworkStream(_responseClient.Client)
+            {
+                ReadTimeout = SocketOperationTimeout
+            };
             var reader = new StreamReader(stream, encoding); //true
             while (!cancelToken.IsCancellationRequested)
             {
@@ -451,8 +455,10 @@ namespace QUIKSharp.Transport
         private void CallbackTaskIOLoop(CancellationToken cancelToken)
         {
             // here we have a connected TCP client
-            var stream = new NetworkStream(_callbackClient.Client);
-            stream.ReadTimeout = SocketOperationTimeout;
+            var stream = new NetworkStream(_callbackClient.Client)
+            {
+                ReadTimeout = SocketOperationTimeout
+            };
             var reader = new StreamReader(stream, encoding); //true
             while (!cancelToken.IsCancellationRequested)
             {
@@ -569,7 +575,7 @@ namespace QUIKSharp.Transport
                     }
                     catch (Exception exc)
                     {
-                        var ex = (exc.InnerException != null) ? exc.InnerException : exc;
+                        var ex = exc.InnerException ?? exc;
                         logger.Error(ex, $"Exception while trying to connect to {_ipaddress}:[{_responsePort},{_callbackPort}]: {ex.Message}");
                         Task.Delay(100, ct).Wait(ct);
                     }
@@ -622,8 +628,8 @@ namespace QUIKSharp.Transport
         /// <param name="callback"></param>
         private void ProcessCallbackMessage(object callback)
         {
-            JToken jtoken = null;
             string command;
+            JToken jtoken;
             try
             {
                 //Deserialize into a JObject
@@ -762,7 +768,7 @@ namespace QUIKSharp.Transport
             if (request.Id <= 0)
                 request.Id = GetNewUniqueId();
 
-            var rr = new RequestReplyState<TResult>(request, task_cancel, service_stop, DefaultSendTimeout);
+            var rr = new RequestReplyState<TResult>(request, DefaultSendTimeout, task_cancel, service_stop);
 
             Responses[request.Id] = rr;
             // add to queue after responses dictionary

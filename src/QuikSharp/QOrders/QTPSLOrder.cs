@@ -51,10 +51,10 @@ namespace QUIKSharp.QOrders
         public QTPSLOrder(ITradeSecurity ins, Operation operation, decimal tp_price, decimal sl_price, decimal? deal_sl_price,
             decimal offset, decimal? spread, long qty) : base(ins, operation, deal_sl_price.GetValueOrDefault(0), qty)
         {
-            this.TakePrice = tp_price;
-            this.StopPrice = sl_price;
-            this.Spread = spread.GetValueOrDefault(0);
-            this.Offset = offset;
+            TakePrice = tp_price;
+            StopPrice = sl_price;
+            Spread = spread.GetValueOrDefault(0);
+            Offset = offset;
 
             MarketStopLoss = !deal_sl_price.HasValue;
             MarketTakeProfit = !spread.HasValue;
@@ -77,8 +77,8 @@ namespace QUIKSharp.QOrders
 
             if (stopOrder.ActiveFromTime < stopOrder.ActiveToTime && stopOrder.ActiveToTime > TimeSpan.Zero)
             {
-                this.ActiveFromTime = stopOrder.ActiveFromTime;
-                this.ActiveToTime = stopOrder.ActiveToTime;
+                ActiveFromTime = stopOrder.ActiveFromTime;
+                ActiveToTime = stopOrder.ActiveToTime;
             }
         }
 
@@ -93,7 +93,7 @@ namespace QUIKSharp.QOrders
         {
             var t = base.PlaceOrderTransaction();
             /// t.PRICE = deal_sl_price;  // -- Цена заявки, за единицу инструмента.
-            t.STOP_ORDER_KIND = this.IsActiveOrderExecution ? StopOrderKind.ACTIVATED_BY_ORDER_TAKE_PROFIT_AND_STOP_LIMIT_ORDER : StopOrderKind.TAKE_PROFIT_AND_STOP_LIMIT_ORDER;
+            t.STOP_ORDER_KIND = IsActiveOrderExecution ? StopOrderKind.ACTIVATED_BY_ORDER_TAKE_PROFIT_AND_STOP_LIMIT_ORDER : StopOrderKind.TAKE_PROFIT_AND_STOP_LIMIT_ORDER;
             t.STOPPRICE = TakePrice;  // -- тэйк-профит
             t.STOPPRICE2 = StopPrice; // -- стоп-лимит
             t.OFFSET = Offset;
@@ -104,11 +104,11 @@ namespace QUIKSharp.QOrders
 
             if (!IsActiveOrderExecution)
             {
-                if (this.ActiveFromTime < this.ActiveToTime && this.ActiveToTime > TimeSpan.Zero)
+                if (ActiveFromTime < ActiveToTime && ActiveToTime > TimeSpan.Zero)
                 {
                     t.IS_ACTIVE_IN_TIME = YesOrNo.YES;
-                    t.ACTIVE_FROM_TIME = this.ActiveFromTime;
-                    t.ACTIVE_TO_TIME = this.ActiveToTime;
+                    t.ACTIVE_FROM_TIME = ActiveFromTime;
+                    t.ACTIVE_TO_TIME = ActiveToTime;
                 }
                 else
                 {

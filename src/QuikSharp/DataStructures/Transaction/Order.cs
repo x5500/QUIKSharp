@@ -150,8 +150,8 @@ namespace QUIKSharp.DataStructures.Transaction
         [JsonConverter(typeof(HHMMSS_TimeSpanConverter))]
         public TimeSpan ExpiryTime
         {
-            get => this.ExpiryDateTime.TimeOfDay;
-            set => this.ExpiryDateTime = ExpiryDateTime.Date + value;
+            get => ExpiryDateTime.TimeOfDay;
+            set => ExpiryDateTime = ExpiryDateTime.Date + value;
         }
 
         /// <summary>
@@ -161,8 +161,8 @@ namespace QUIKSharp.DataStructures.Transaction
         [JsonConverter(typeof(YYYYMMDD_DateTimeConverter))]
         public DateTime ExpiryDate
         {
-            get => this.ExpiryDateTime.Date;
-            set => this.ExpiryDateTime = value.Date + ExpiryDateTime.TimeOfDay;
+            get => ExpiryDateTime.Date;
+            set => ExpiryDateTime = value.Date + ExpiryDateTime.TimeOfDay;
         }
 
         /// <summary>
@@ -435,15 +435,15 @@ namespace QUIKSharp.DataStructures.Transaction
         [JsonIgnore]
         public Operation Operation
         {
-            get => this.Flags.HasFlag(OrderTradeFlags.IsSell) ? Operation.Sell : Operation.Buy;
-            set => this.Flags = (value == Operation.Sell) ? (Flags | OrderTradeFlags.IsSell) : (Flags & ~OrderTradeFlags.IsSell);
+            get => Flags.HasFlag(OrderTradeFlags.IsSell) ? Operation.Sell : Operation.Buy;
+            set => Flags = (value == Operation.Sell) ? (Flags | OrderTradeFlags.IsSell) : (Flags & ~OrderTradeFlags.IsSell);
         }
 
         /// <summary>
         /// Состояние заявки.
         /// </summary>
         [JsonIgnore]
-        public State State => this.Flags.HasFlag(OrderTradeFlags.Active) ? State.Active
+        public State State => Flags.HasFlag(OrderTradeFlags.Active) ? State.Active
             : Flags.HasFlag(OrderTradeFlags.Canceled) ? State.Canceled
             : Flags.HasFlag(OrderTradeFlags.Rejected) ? State.Rejected : State.Completed;
     }

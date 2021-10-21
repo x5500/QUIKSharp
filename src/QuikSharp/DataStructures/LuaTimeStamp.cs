@@ -27,7 +27,7 @@ namespace QUIKSharp.DataStructures
 
         public override bool Equals(object obj)
         {
-            return this.Equals(obj);
+            return Equals(obj);
         }
 
         public override int GetHashCode()

@@ -337,7 +337,7 @@ namespace QUIKSharp.TestQuik
             try
             {
                 DateTime ts = (DateTime)row[timestamp_field];
-                this.PlayerStart = ts;
+                PlayerStart = ts;
             }
             catch (IndexOutOfRangeException) { }
         }
@@ -347,7 +347,7 @@ namespace QUIKSharp.TestQuik
             try
             {
                 DateTime ts = (DateTime)row[timestamp_field];
-                this.PlayerEnd = ts;
+                PlayerEnd = ts;
             }
             catch (IndexOutOfRangeException) { }
         }

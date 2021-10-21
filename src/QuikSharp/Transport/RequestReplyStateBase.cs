@@ -37,9 +37,9 @@ namespace QUIKSharp.Transport
         public bool IsValid => RequestMsg.IsValid();
         public bool IsWaitingForResponse => (TaskStatus == TaskStatus.WaitingForActivation || TaskStatus == TaskStatus.WaitingToRun);
         protected CancellationTokenSource _cts { get; }
-        internal RequestReplyStateBase(IMessage request, Type responseType, CancellationToken task_cancel, CancellationToken service_stop, TimeSpan sendTimeout)
+        internal RequestReplyStateBase(IMessage request, Type responseType, TimeSpan sendTimeout, CancellationToken task_cancel, CancellationToken service_stop)
         {
-            this.RequestMsg = request;
+            RequestMsg = request;
             this.responseType = responseType;
             this.task_cancel = task_cancel;
             this.service_stop = service_stop;
@@ -47,7 +47,7 @@ namespace QUIKSharp.Transport
             _cts.Token.Register(OnInternalCancellation, useSynchronizationContext: false);
             
             if (sendTimeout.TotalSeconds > 0)
-                this.CancelAfter(sendTimeout);
+                CancelAfter(sendTimeout);
 
             if (EnablePerfomanceLog)
                 execution_ticks = DateTime.Now.Ticks;
@@ -64,11 +64,11 @@ namespace QUIKSharp.Transport
         protected void OnInternalCancellation()
         { //         => this.SetException(new OperationCanceledException((CancellationToken)cancellationToken));
             if (task_cancel.IsCancellationRequested)
-                this.SetException(new OperationCanceledException("Operation cancelled.", task_cancel));
+                SetException(new OperationCanceledException("Operation cancelled.", task_cancel));
             if (service_stop.IsCancellationRequested)
-                this.SetException(new OperationCanceledException("Service stopped!", service_stop));
+                SetException(new OperationCanceledException("Service stopped!", service_stop));
             else
-                this.SetException(new TimeoutException("Send operation timed out"));
+                SetException(new TimeoutException("Send operation timed out"));
         }
         public bool SetResult(JToken jtoken)
         {
@@ -79,13 +79,13 @@ namespace QUIKSharp.Transport
                 //var response = jtoken.FromJToken(responseType) as IMessage;
                 var responseMsg = TypedFromJToken(jtoken) as IMessage;
                 if (string.Compare(RequestMsg.Command, responseMsg.Command, true) != 0)
-                    this.SetException(new Exception($"RequestReplyStateBase.SetResult: Fatal exception: response.Command[{responseMsg.Command}] != request.command[{RequestMsg.Command}]"));
+                    SetException(new Exception($"RequestReplyStateBase.SetResult: Fatal exception: response.Command[{responseMsg.Command}] != request.command[{RequestMsg.Command}]"));
                 else
                 if (!responseMsg.IsValid())
-                    this.SetException(new TimeoutException($"Respose message (Id:{responseMsg.Id}, cmd:{cmd}) expired! ValidUntilUTC is less than current time"));
+                    SetException(new TimeoutException($"Respose message (Id:{responseMsg.Id}, cmd:{cmd}) expired! ValidUntilUTC is less than current time"));
                 else
                 {
-                    if (!this.TrySetResult(responseMsg.Data))
+                    if (!TrySetResult(responseMsg.Data))
                         return false;
                     if (EnablePerfomanceLog)
                         PerfomanceLog();
@@ -95,19 +95,19 @@ namespace QUIKSharp.Transport
             catch (Exception e) // deserialization exception is possible
             {
                 logger.Error(e, $"RequestReplyStateBase.SetResult: Exception processing response': {e.Message}");
-                this.SetException(e);
+                SetException(e);
             }
             return false;
         }
         public void SetException(Exception e)
         {
-            if (!this.TrySetException(e)) return;
+            if (!TrySetException(e)) return;
             if (EnablePerfomanceLog)
                 PerfomanceLog();
         }
         public void SetCancelled(CancellationToken cancellationToken)
         {
-            if (!this.TrySetCancelled(cancellationToken)) return;
+            if (!TrySetCancelled(cancellationToken)) return;
             if (EnablePerfomanceLog)
                 PerfomanceLog();
         }

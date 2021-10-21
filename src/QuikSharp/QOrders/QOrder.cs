@@ -139,35 +139,35 @@ namespace QUIKSharp.QOrders
 
         public QOrder(ITradeSecurity ins, Operation operation, decimal price, long qty)
         {
-            this.TradeSecurity = ins;
-            this.Operation = operation;
-            this.Price = price;
-            this._qty = qty;
-            this.QtyLeft = qty;
-            this.QtyTraded = 0;
+            TradeSecurity = ins;
+            Operation = operation;
+            Price = price;
+            _qty = qty;
+            QtyLeft = qty;
+            QtyTraded = 0;
 
             _state = QOrderState.None;
             KillMoveState = QOrderKillMoveState.NoKill;
         }
         public QOrder(QOrder copy_from, CopyQtyMode copyQty)
         {
-            this.TradeSecurity = copy_from.TradeSecurity;
-            this.Operation = copy_from.Operation;
-            this.Price = copy_from.Price;
+            TradeSecurity = copy_from.TradeSecurity;
+            Operation = copy_from.Operation;
+            Price = copy_from.Price;
             switch (copyQty)
             {
                 case CopyQtyMode.Qty:
-                    this._qty = copy_from.Qty;
+                    _qty = copy_from.Qty;
                     break;
                 case CopyQtyMode.QtyLeft:
-                    this._qty = copy_from.QtyLeft;
+                    _qty = copy_from.QtyLeft;
                     break;
                 case CopyQtyMode.QtyTraded:
-                    this._qty = copy_from.QtyTraded;
+                    _qty = copy_from.QtyTraded;
                     break;
             }
-            this.QtyLeft = this._qty;
-            this.QtyTraded = 0;
+            QtyLeft = _qty;
+            QtyTraded = 0;
 
             _state = QOrderState.None;
             KillMoveState = QOrderKillMoveState.NoKill;
@@ -179,7 +179,7 @@ namespace QUIKSharp.QOrders
         /// <returns></returns>
         public bool isActive()
         {
-            switch (this.State)
+            switch (State)
             {
                 case QOrderState.Placed:
                 case QOrderState.Filled:
@@ -195,9 +195,9 @@ namespace QUIKSharp.QOrders
             CLIENT_CODE = TradeSecurity.ClientCode,
             ClassCode = TradeSecurity.ClassCode,
             SecCode = TradeSecurity.SecCode,
-            QUANTITY = this.Qty,
-            OPERATION = this.Operation == Operation.Buy ? TransactionOperation.B : TransactionOperation.S,
-            PRICE = this.Price,
+            QUANTITY = Qty,
+            OPERATION = Operation == Operation.Buy ? TransactionOperation.B : TransactionOperation.S,
+            PRICE = Price,
         };
 
         /// <summary>
@@ -208,15 +208,15 @@ namespace QUIKSharp.QOrders
         /// <param name="balance">Неисполненный объем заявки</param>
         internal void SetQty(long qty, long balance)
         {
-            this._qty = qty;
-            this.QtyLeft = balance;
+            _qty = qty;
+            QtyLeft = balance;
             // TODO: Решить что то с QtyTraded
         }
 
         protected virtual void ProcessTradedQty(long partial, bool noCallEvent)
         {
             // Есть дополнительный проторгованный объем
-            this.QtyLeft -= partial;
+            QtyLeft -= partial;
 
             if (QtyLeft == 0)
             {
@@ -237,9 +237,9 @@ namespace QUIKSharp.QOrders
         /// <param name="noCallEvent">Не вызывать событие</param>
         internal long AddTraded(long traded, bool noCallEvent)
         {
-            this.QtyTraded += traded;
-            long left = this.Qty - this.QtyTraded;
-            long partial = this.QtyLeft - left;
+            QtyTraded += traded;
+            long left = Qty - QtyTraded;
+            long partial = QtyLeft - left;
             if (partial > 0)
             {
                 // Есть дополнительный проторгованный объем
@@ -256,7 +256,7 @@ namespace QUIKSharp.QOrders
         /// <param name="noCallEvent">Не вызывать событие</param>
         internal long SetBalance(long balance, bool noCallEvent)
         {
-            long partial = this.QtyLeft - balance;
+            long partial = QtyLeft - balance;
             if (partial > 0)
             {
                 // Есть дополнительный проторгованный объем
@@ -268,7 +268,7 @@ namespace QUIKSharp.QOrders
 
         protected void SetTransacExpityDate(Transaction t)
         {
-            t.EXPIRY_DATE = ExpireEndOfDay ? "TODAY" : Expiry.Date > DateTime.MinValue ? QuikDateTimeConverter.DateTimeToYYYYMMDD(this.Expiry.Date) : "GTC";
+            t.EXPIRY_DATE = ExpireEndOfDay ? "TODAY" : Expiry.Date > DateTime.MinValue ? QuikDateTimeConverter.DateTimeToYYYYMMDD(Expiry.Date) : "GTC";
         }
         internal virtual void SetQuikState(State new_state, bool noCallEvents)
         {
@@ -296,8 +296,8 @@ namespace QUIKSharp.QOrders
         }
         protected virtual void SetState(QOrderState new_state, bool noCallEvents)
         {
-            if (this._state == new_state) return;
-            switch (this._state)
+            if (_state == new_state) return;
+            switch (_state)
             {
                 // Allow change state
                 case QOrderState.None:
@@ -334,12 +334,12 @@ namespace QUIKSharp.QOrders
                     break;
             }
 
-            this._state = new_state;
+            _state = new_state;
             StateUpdated = DateTime.Now;
 
             if (noCallEvents) return;
 
-            switch (this._state)
+            switch (_state)
             {
                 case QOrderState.Placed:
                     CallEvent_OnPlaced();

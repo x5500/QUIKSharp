@@ -35,8 +35,8 @@ namespace QUIKSharp.Transport
             IsWithLuaTimeStamp = typeof(IWithLuaTimeStamp).IsAssignableFrom(typeof(T));
         }
 
-        internal RequestReplyState(IMessage request, CancellationToken task_cancel, CancellationToken service_stop, TimeSpan defaultSendTimeout)
-            : base(request, typeof(Message<T>), task_cancel, service_stop, defaultSendTimeout)
+        internal RequestReplyState(IMessage request, TimeSpan defaultSendTimeout, CancellationToken task_cancel, CancellationToken service_stop)
+            : base(request, typeof(Message<T>), defaultSendTimeout, task_cancel, service_stop)
         {
             tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         }

@@ -24,9 +24,9 @@ namespace QUIKSharp.QOrders
 
         public QTakeOrder(ITradeSecurity ins, Operation operation, decimal take_price, decimal offset, decimal spread, long qty) : base(ins, operation, 0m, qty)
         {
-            this.TakePrice = take_price;
-            this.Spread = spread;
-            this.Offset = offset;
+            TakePrice = take_price;
+            Spread = spread;
+            Offset = offset;
         }
 
         internal QTakeOrder(StopOrder stopOrder, bool useBalance = false) : base(stopOrder, useBalance)
@@ -39,7 +39,7 @@ namespace QUIKSharp.QOrders
         {
             var t = base.PlaceOrderTransaction();
             t.STOP_ORDER_KIND = IsActiveOrderExecution ? StopOrderKind.ACTIVATED_BY_ORDER_TAKE_PROFIT_STOP_ORDER : StopOrderKind.TAKE_PROFIT_STOP_ORDER;
-            t.STOPPRICE = this.TakePrice; // -- тэйк-профит
+            t.STOPPRICE = TakePrice; // -- тэйк-профит
             t.OFFSET = Offset;
             t.OFFSET_UNITS = OffsetUnits.PRICE_UNITS;
             t.SPREAD = Spread;

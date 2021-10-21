@@ -28,8 +28,8 @@ namespace QUIKSharp.Functions
 
         internal TransactionsFunctions(IQuikService quikService, IIdentifyTransaction idProvider) : base(quikService)
         {
-            this.default_idProvider = idProvider;
-            this._idProvider = idProvider;
+            default_idProvider = idProvider;
+            _idProvider = idProvider;
             QuikService.Events.OnTransReply += Events_OnTransReply;
             QuikService.Events.OnOrder += Events_OnOrder;
             QuikService.Events.OnStopOrder += Events_OnStopOrder;
@@ -315,7 +315,7 @@ namespace QUIKSharp.Functions
             }
 
             long TRANS_ID = IdProvider.IdentifyTransactionReply(transReply);
-            if (this.Transactions.TryRemove(TRANS_ID, out var waiter))
+            if (Transactions.TryRemove(TRANS_ID, out var waiter))
             {
                 var ResultMsg = transReply.ResultMsg ?? $" Status: {transReply.Status}, ErrorCode {transReply.ErrorCode}, ErrorSource {transReply.ErrorSource}";
                 var result = new TransactionWaitResult()
@@ -352,7 +352,7 @@ namespace QUIKSharp.Functions
             if (IdProvider == null) return;
 
             long TRANS_ID = IdProvider.IdentifyOrder(order);
-            if ((TRANS_ID != 0) && this.Transactions.TryRemove(TRANS_ID, out var waiter))
+            if ((TRANS_ID != 0) && Transactions.TryRemove(TRANS_ID, out var waiter))
             {
                 bool rejected = order.State == QUIKSharp.DataStructures.State.Rejected;
                 var ResultMsg = rejected ? $"Order (TRANS_ID: {TRANS_ID}  RejectReason: {order.RejectReason}"
@@ -384,7 +384,7 @@ namespace QUIKSharp.Functions
             if (IdProvider == null) return;
 
             long TRANS_ID = IdProvider.IdentifyOrder(order);
-            if ((TRANS_ID != 0) && this.Transactions.TryRemove(TRANS_ID, out var waiter))
+            if ((TRANS_ID != 0) && Transactions.TryRemove(TRANS_ID, out var waiter))
             {
                 bool rejected = order.State == State.Rejected;
                 var ResultMsg = rejected ? $"StopOrder Rejected (TRANS_ID: {TRANS_ID} {order.Flags} {order.StopFlags})"

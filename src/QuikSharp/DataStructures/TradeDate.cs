@@ -40,7 +40,7 @@ namespace QUIKSharp.DataStructures
 
         public DateTime ToDateTime()
         {
-            return new DateTime(this.Year, this.Month, this.Day);
+            return new DateTime(Year, Month, Day);
         }
     }
 }

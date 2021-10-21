@@ -40,8 +40,8 @@ namespace QUIKSharp.DataStructures
         [JsonConverter(typeof(YYYYMMDD_DateTimeConverter))]
         public DateTime XDate
         {
-            get => this.XValue.Date;
-            set => this.XValue = value.Date + XValue.TimeOfDay;
+            get => XValue.Date;
+            set => XValue = value.Date + XValue.TimeOfDay;
         }
 
         /// <summary>
@@ -51,8 +51,8 @@ namespace QUIKSharp.DataStructures
         [JsonConverter(typeof(HHMMSS_TimeSpanConverter))]
         public TimeSpan XTime
         {
-            get => this.XValue.TimeOfDay;
-            set => this.XValue = XValue.Date + value;
+            get => XValue.TimeOfDay;
+            set => XValue = XValue.Date + value;
         }
 
         /// <summary>
@@ -140,25 +140,25 @@ namespace QUIKSharp.DataStructures
 
         internal string ToMsg()
         {
-            var strDate = QuikDateTimeConverter.DateTimeToYYYYMMDD(this.XDate);
-            var strTime = QuikDateTimeConverter.TimeSpanToHHMMSS(this.XTime);
+            var strDate = QuikDateTimeConverter.DateTimeToYYYYMMDD(XDate);
+            var strTime = QuikDateTimeConverter.TimeSpanToHHMMSS(XTime);
 
             return string.Join("|", new string[]
             {
-                this.YValue.ToString(),
+                YValue.ToString(),
                 strDate,
                 strTime,
-                this.Text,
-                this.ImagePath,
-                this.Alignment.ToString(),
-                this.Hint,
-                this.Red.ToString(),
-                this.Green.ToString(),
-                this.Blue.ToString(),
-                this.Transparency.ToString(),
-                this.TranBackgrnd.ToString(),
-                this.FontName,
-                this.FontHeight.ToString()
+                Text,
+                ImagePath,
+                Alignment.ToString(),
+                Hint,
+                Red.ToString(),
+                Green.ToString(),
+                Blue.ToString(),
+                Transparency.ToString(),
+                TranBackgrnd.ToString(),
+                FontName,
+                FontHeight.ToString()
             });
         }
     }

@@ -64,7 +64,7 @@ namespace QUIKSharp.Orders
         /// <param name="timeout_ms">Таймаут ожидания ответа на транзакцию (исполнения ордера)</param>
         public QuikOrders(Quik quik, int timeout_ms = 20000)
         {
-            this.Timeout_ms = timeout_ms;
+            Timeout_ms = timeout_ms;
             this.quik = quik;
         }
 
@@ -423,7 +423,7 @@ namespace QUIKSharp.Orders
             var t = new Transaction
             {
                 ACTION = TransactionAction.MOVE_ORDERS,
-                MODE = mode,
+                MoveMode = mode,
                 ClassCode = trsec.ClassCode,
                 SecCode = trsec.SecCode,
                 ACCOUNT = trsec.AccountID,
@@ -447,7 +447,7 @@ namespace QUIKSharp.Orders
             var t = new Transaction
             {
                 ACTION = TransactionAction.MOVE_ORDERS,
-                MODE = mode,
+                MoveMode = mode,
                 ClassCode = order1.ClassCode,
                 SecCode = order1.SecCode,
                 ACCOUNT = order1.Account,
@@ -479,7 +479,7 @@ namespace QUIKSharp.Orders
             var t = new Transaction
             {
                 ACTION = TransactionAction.MOVE_ORDERS,
-                MODE = new_qty.HasValue ? TransactionMode.NewQty : TransactionMode.SameQty,
+                MoveMode = new_qty.HasValue ? TransactionMode.NewQty : TransactionMode.SameQty,
                 ClassCode = trsec.ClassCode,
                 SecCode = trsec.SecCode,
                 ACCOUNT = trsec.AccountID,

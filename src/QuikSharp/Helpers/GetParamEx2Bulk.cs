@@ -19,7 +19,7 @@ namespace QUIKSharp.Helpers
     {
         public GetParamEx2Bulk(ISecurity ins)
         {
-            this.sec = ins;
+            sec = ins;
         }
 
         public ISecurity sec { get; private set; }
@@ -38,8 +38,8 @@ namespace QUIKSharp.Helpers
 
         public GetParamEx2BulkItem<T> AddNew<T>(ParamNames paramName, int group = 0)
         {
-            var item = new GetParamEx2BulkItem<T>(this.sec, paramName, group);
-            this.Items.Add(item);
+            var item = new GetParamEx2BulkItem<T>(sec, paramName, group);
+            Items.Add(item);
             return item;
         }
         /// <summary>
@@ -60,13 +60,13 @@ namespace QUIKSharp.Helpers
 
         public async Task RequestGroup(IQuik quik, int group, CancellationToken cancellationToken)
         {
-            var list = this.Select(group);
+            var list = Select(group);
             var Result = await quik.Trading.GetParamEx2Bulk(list, cancellationToken).ConfigureAwait(false);
             GetParamEx2Bulk.ParseResult(list, Result);
         }
         public async Task RequestAll(IQuik quik, CancellationToken cancellationToken)
         {
-            var list = this.Items;
+            var list = Items;
             var Result = await quik.Trading.GetParamEx2Bulk(list, cancellationToken).ConfigureAwait(false);
             GetParamEx2Bulk.ParseResult(list, Result);
         }
@@ -119,8 +119,8 @@ namespace QUIKSharp.Helpers
                 else
                     new_value = (T)Activator.CreateInstance(valueType);
             }
-            this.Changed = !new_value.Equals(Value);
-            if (this.Changed)
+            Changed = !new_value.Equals(Value);
+            if (Changed)
                 Value = new_value;
         }
 

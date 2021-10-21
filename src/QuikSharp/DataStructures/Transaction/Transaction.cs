@@ -343,13 +343,22 @@ namespace QUIKSharp.DataStructures.Transaction
         public string BASE_CONTRACT { get; set; }
 
         /// <summary>
-        ///  Режим перестановки заявок на рынке FORTS. Параметр операции «ACTION» = «MOVE_ORDERS»
+        /// Режим перестановки заявок на рынке FORTS. Параметр операции «ACTION» = «MOVE_ORDERS»
+        /// Строковое значение, QUIK воспринимает этот параметр исключительно как строковое значение.
+        /// Чтобы задать параметр используется поле 'MoveMode'
         ///  Возможные значения:
         ///  «0» – оставить количество в заявках без изменения,
         ///  «1» – изменить количество в заявках на новые,
         ///  «2» – при несовпадении новых количеств с текущим хотя бы в одной заявке, обе заявки снимаются
         /// </summary>
-        public TransactionMode? MODE { get; set; }
+        [JsonProperty("MODE")]
+        public string mode_str { get => MoveMode.HasValue ? ((int)MoveMode).ToString() : null; set => MoveMode = (TransactionMode?)Enum.Parse(typeof(TransactionMode?), value); }
+
+        /// <summary>
+        ///  Режим перестановки заявок на рынке FORTS. Параметр операции «ACTION» = «MOVE_ORDERS»
+        /// </summary>
+        [JsonIgnore]
+        public TransactionMode? MoveMode { get; set; }
 
         /// <summary>
         /// Номер первой заявки
@@ -518,7 +527,7 @@ namespace QUIKSharp.DataStructures.Transaction
                    USE_BASE_ORDER_BALANCE == other.USE_BASE_ORDER_BALANCE &&
                    ACTIVATE_IF_BASE_ORDER_PARTLY_FILLED == other.ACTIVATE_IF_BASE_ORDER_PARTLY_FILLED &&
                    BASE_CONTRACT == other.BASE_CONTRACT &&
-                   MODE == other.MODE &&
+                   MoveMode == other.MoveMode &&
                    FIRST_ORDER_NUMBER == other.FIRST_ORDER_NUMBER &&
                    FIRST_ORDER_NEW_QUANTITY == other.FIRST_ORDER_NEW_QUANTITY &&
                    FIRST_ORDER_NEW_PRICE == other.FIRST_ORDER_NEW_PRICE &&

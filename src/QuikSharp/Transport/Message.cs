@@ -56,7 +56,7 @@ namespace QUIKSharp.Transport
             Data = message;
         }
 
-        public bool IsValid() => !this.ValidUntil.HasValue || (this.ValidUntil > DateTime.UtcNow);
+        public bool IsValid() => !ValidUntil.HasValue || (ValidUntil > DateTime.UtcNow);
     }
 
     internal class MessageS : Message<string>

@@ -19,7 +19,7 @@ namespace QUIKSharp.QOrders
         public QSimpleStopOrder(ITradeSecurity ins, Operation operation, decimal stop_price, decimal dealprice, long qty)
             : base(ins, operation, dealprice, qty)
         {
-            this.StopPrice = stop_price;
+            StopPrice = stop_price;
         }
 
         internal QSimpleStopOrder(StopOrder stopOrder, bool useBalance = false) : base(stopOrder, useBalance)
@@ -30,14 +30,14 @@ namespace QUIKSharp.QOrders
         public override Transaction PlaceOrderTransaction()
         {
             var t = base.PlaceOrderTransaction();
-            t.STOPPRICE = this.StopPrice;
+            t.STOPPRICE = StopPrice;
             t.STOP_ORDER_KIND = IsActiveOrderExecution ? StopOrderKind.ACTIVATED_BY_ORDER_SIMPLE_STOP_ORDER : StopOrderKind.SIMPLE_STOP_ORDER;
             return t;
         }
 
         internal override void UpdateFrom(StopOrder stopOrder, bool noCallEvents)
         {
-            this.StopPrice = stopOrder.ConditionPrice;
+            StopPrice = stopOrder.ConditionPrice;
             base.UpdateFrom(stopOrder, noCallEvents);
         }
 

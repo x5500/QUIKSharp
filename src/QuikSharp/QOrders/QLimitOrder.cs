@@ -55,8 +55,8 @@ namespace QUIKSharp.QOrders
         public QLimitOrder(ITradeSecurity ins, Operation operation, decimal dealprice, long qty, ExecutionCondition execution = ExecutionCondition.PUT_IN_QUEUE, TransactionType transactionType = TransactionType.L)
             : base(ins, operation, dealprice, qty)
         {
-            this.Execution = execution;
-            this.OrderType = transactionType;
+            Execution = execution;
+            OrderType = transactionType;
         }
 
         /// <summary>
@@ -70,26 +70,26 @@ namespace QUIKSharp.QOrders
                 order.Price,
                 copyQtyMode == CopyQtyMode.Qty ? order.Quantity : copyQtyMode == CopyQtyMode.QtyLeft ? order.Balance : order.Quantity - order.Balance )
         {
-            this.OrderType = order.Flags.HasFlag(OrderTradeFlags.IsLimit) ? TransactionType.L : TransactionType.M;
+            OrderType = order.Flags.HasFlag(OrderTradeFlags.IsLimit) ? TransactionType.L : TransactionType.M;
             switch (order.ExecType)
             {
                 case OrderExecType.FillOrKill:
-                    this.Execution = ExecutionCondition.FILL_OR_KILL;
+                    Execution = ExecutionCondition.FILL_OR_KILL;
                     break;
 
                 case OrderExecType.PlaceInQuery:
-                    this.Execution = ExecutionCondition.PUT_IN_QUEUE;
+                    Execution = ExecutionCondition.PUT_IN_QUEUE;
                     break;
 
                 case OrderExecType.ImmediateOrCancel:
-                    this.Execution = ExecutionCondition.KILL_BALANCE;
+                    Execution = ExecutionCondition.KILL_BALANCE;
                     break;
 
                 default:
-                    this.Execution = ExecutionCondition.PUT_IN_QUEUE;
+                    Execution = ExecutionCondition.PUT_IN_QUEUE;
                     break;
             };
-            this.Expiry = order.ExecType == OrderExecType.WhileThisSession ? DateTime.Today
+            Expiry = order.ExecType == OrderExecType.WhileThisSession ? DateTime.Today
                 : (order.ExecType != OrderExecType.GoodTillCancelled) && (order.ExpiryDate > DateTime.Today) ? order.ExpiryDate
                 : DateTime.MinValue;
 
@@ -105,23 +105,23 @@ namespace QUIKSharp.QOrders
 
         public QLimitOrder(QLimitOrder copy_from, CopyQtyMode copyQty) : base(copy_from, copyQty)
         {
-            this.Execution = copy_from.Execution;
-            this.OrderType = copy_from.OrderType;
+            Execution = copy_from.Execution;
+            OrderType = copy_from.OrderType;
         }
         internal void UpdateFrom(TransactionReply transReply)
         {
-            this.TransID = transReply.TransID;
-            this.OrderNum = transReply.OrderNum;
+            TransID = transReply.TransID;
+            OrderNum = transReply.OrderNum;
 
             if (transReply.Price.HasValue)
-                this.Price = transReply.Price.Value;
+                Price = transReply.Price.Value;
 
             // transReply.Balance == 0 for new orders...
             //   if (transReply.Quantity.HasValue && transReply.Balance.HasValue)
             //      this.SetQty(transReply.Quantity.Value, transReply.Balance.Value);
 
             if (transReply.Quantity.HasValue)
-                this.SetQty(transReply.Quantity.Value, transReply.Quantity.Value);
+                SetQty(transReply.Quantity.Value, transReply.Quantity.Value);
 
         }
 
@@ -137,29 +137,29 @@ namespace QUIKSharp.QOrders
             OrderNum = order.OrderNum;
             LinkedOrderNum = order.Linkedorder;
 
-            this.Operation = order.Operation;
-            this.Price = order.Price;
+            Operation = order.Operation;
+            Price = order.Price;
 
-            this.OrderType = order.Flags.HasFlag(OrderTradeFlags.IsLimit) ? TransactionType.L : TransactionType.M;
+            OrderType = order.Flags.HasFlag(OrderTradeFlags.IsLimit) ? TransactionType.L : TransactionType.M;
             switch (order.ExecType)
             {
                 case OrderExecType.FillOrKill:
-                    this.Execution = ExecutionCondition.FILL_OR_KILL;
+                    Execution = ExecutionCondition.FILL_OR_KILL;
                     break;
 
                 case OrderExecType.PlaceInQuery:
-                    this.Execution = ExecutionCondition.PUT_IN_QUEUE;
+                    Execution = ExecutionCondition.PUT_IN_QUEUE;
                     break;
 
                 case OrderExecType.ImmediateOrCancel:
-                    this.Execution = ExecutionCondition.KILL_BALANCE;
+                    Execution = ExecutionCondition.KILL_BALANCE;
                     break;
 
                 default:
-                    this.Execution = ExecutionCondition.PUT_IN_QUEUE;
+                    Execution = ExecutionCondition.PUT_IN_QUEUE;
                     break;
             };
-            this.Expiry = order.ExecType == OrderExecType.WhileThisSession ? DateTime.Today
+            Expiry = order.ExecType == OrderExecType.WhileThisSession ? DateTime.Today
                 : (order.ExecType != OrderExecType.GoodTillCancelled) && (order.ExpiryDate > DateTime.Today) ? order.ExpiryDate
                 : DateTime.MinValue;
 
@@ -182,7 +182,7 @@ namespace QUIKSharp.QOrders
         public Transaction MoveOrderTransaction(decimal new_price, long new_qty) => new Transaction
         {
             ACTION = TransactionAction.MOVE_ORDERS,
-            MODE = TransactionMode.NewQty,
+            MoveMode = (QtyLeft != new_qty) ? TransactionMode.NewQty : TransactionMode.SameQty,
             ClassCode = TradeSecurity.ClassCode,
             SecCode = TradeSecurity.SecCode,
             ACCOUNT = TradeSecurity.AccountID,
@@ -197,7 +197,7 @@ namespace QUIKSharp.QOrders
             ClassCode = TradeSecurity.ClassCode,
             SecCode = TradeSecurity.SecCode,
             ACCOUNT = TradeSecurity.AccountID,
-            ORDER_KEY = this.OrderNum,
+            ORDER_KEY = OrderNum,
         };
 
         internal void CallEvent_OnMoved(QLimitOrder new_qOrder)
@@ -216,7 +216,7 @@ namespace QUIKSharp.QOrders
         }
         protected override void SetState(QOrderState new_state, bool noCallEvents)
         {
-            if (this.State == new_state) return;
+            if (State == new_state) return;
 
             base.SetState(new_state, noCallEvents);
             if (LinkedOrder != null)
@@ -230,8 +230,8 @@ namespace QUIKSharp.QOrders
         {
             if (LinkedOrderNum == 0)
             {
-                this.LinkedOrder = stopOrder;
-                this.LinkedRole = role;
+                LinkedOrder = stopOrder;
+                LinkedRole = role;
                 if (stopOrder.OrderNum.HasValue)
                     LinkedOrderNum = stopOrder.OrderNum.Value;
                 LinkedOrder.OnLinkedOrderQty(this, noCallEvents);
@@ -239,8 +239,8 @@ namespace QUIKSharp.QOrders
             else
             if (stopOrder.OrderNum.HasValue && (LinkedOrderNum == stopOrder.OrderNum.Value))
             {
-                this.LinkedOrder = stopOrder;
-                this.LinkedRole = role;
+                LinkedOrder = stopOrder;
+                LinkedRole = role;
                 LinkedOrder.OnLinkedOrderQty(this, noCallEvents);
             }
         }

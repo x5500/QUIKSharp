@@ -66,8 +66,8 @@ namespace QUIKSharp.QOrders
             if (IsActiveOrderExecution)
             {
                 t.BASE_ORDER_KEY = CoOrderNum;
-                t.ACTIVATE_IF_BASE_ORDER_PARTLY_FILLED = this.ActivateOnPartlyFilled ? YesOrNo.YES : YesOrNo.NO;
-                t.USE_BASE_ORDER_BALANCE = this.UseBaseOrderBalance ? YesOrNo.YES : YesOrNo.NO;
+                t.ACTIVATE_IF_BASE_ORDER_PARTLY_FILLED = ActivateOnPartlyFilled ? YesOrNo.YES : YesOrNo.NO;
+                t.USE_BASE_ORDER_BALANCE = UseBaseOrderBalance ? YesOrNo.YES : YesOrNo.NO;
             }
 
             if (!IsActiveOrderExecution)
@@ -81,9 +81,9 @@ namespace QUIKSharp.QOrders
             var t = new Transaction
             {
                 ACTION = TransactionAction.KILL_STOP_ORDER,
-                ClassCode = this.ClassCode,
+                ClassCode = ClassCode,
                 ACCOUNT = TradeSecurity.AccountID,
-                SecCode = this.SecCode,
+                SecCode = SecCode,
                 STOP_ORDER_KEY = OrderNum,
             };
             return t;
@@ -104,21 +104,21 @@ namespace QUIKSharp.QOrders
             QtyLeft = stopOrder.Quantity;
             QtyTraded = 0;
 
-            this.ActivateOnPartlyFilled = stopOrder.StopFlags.HasFlag(StopBehaviorFlags.ActivateOnPartial);
-            this.UseBaseOrderBalance = stopOrder.StopFlags.HasFlag(StopBehaviorFlags.UseRemains);
-            this.ExpireEndOfDay = stopOrder.StopFlags.HasFlag(StopBehaviorFlags.ExpireEndOfDay);
-            this.Expiry = stopOrder.Expiry;
+            ActivateOnPartlyFilled = stopOrder.StopFlags.HasFlag(StopBehaviorFlags.ActivateOnPartial);
+            UseBaseOrderBalance = stopOrder.StopFlags.HasFlag(StopBehaviorFlags.UseRemains);
+            ExpireEndOfDay = stopOrder.StopFlags.HasFlag(StopBehaviorFlags.ExpireEndOfDay);
+            Expiry = stopOrder.Expiry;
 
-            this.SetQuikState(stopOrder.State, stopOrder.Flags, true);
+            SetQuikState(stopOrder.State, stopOrder.Flags, true);
         }
 
         internal virtual void UpdateFrom(StopOrder stopOrder, bool noCallEvents)
         {
-            this.TransID = stopOrder.TransID;
-            this.OrderNum = stopOrder.OrderNum;
-            this.CoOrderNum = stopOrder.co_order_num;
-            this.ChildLimitOrderNum = stopOrder.LinkedOrder;
-            this.Price = stopOrder.Price;
+            TransID = stopOrder.TransID;
+            OrderNum = stopOrder.OrderNum;
+            CoOrderNum = stopOrder.co_order_num;
+            ChildLimitOrderNum = stopOrder.LinkedOrder;
+            Price = stopOrder.Price;
 
             // Для Стоп-ордера эти поля заполняем по факту исполнения лимитных заявок
             // QtyLeft, QtyTraded
@@ -127,19 +127,19 @@ namespace QUIKSharp.QOrders
             //this.SetQty(stopOrder.Quantity, stopOrder.Balance);
             //this.QtyTraded = stopOrder.FilledQuantity;
 
-            this.SetQuikState(stopOrder.State, stopOrder.Flags, noCallEvents);
+            SetQuikState(stopOrder.State, stopOrder.Flags, noCallEvents);
         }
 
         internal virtual void UpdateFrom(TransactionReply transReply)
         {
-            this.TransID = transReply.TransID;
-            this.OrderNum = transReply.OrderNum;
+            TransID = transReply.TransID;
+            OrderNum = transReply.OrderNum;
 
             if (transReply.Price.HasValue)
-                this.Price = transReply.Price.Value;
+                Price = transReply.Price.Value;
 
             if (transReply.Quantity.HasValue && transReply.Balance.HasValue)
-                this.SetQty(transReply.Quantity.Value, transReply.Balance.Value);
+                SetQty(transReply.Quantity.Value, transReply.Balance.Value);
         }
 
 
@@ -268,7 +268,7 @@ namespace QUIKSharp.QOrders
         /// <returns></returns>
         public virtual bool SetDependsOn(QLimitOrder limitOrder)
         {
-            if (this.State != QOrderState.None)
+            if (State != QOrderState.None)
                 return false;
 
             SetCoOrder(limitOrder, true);
@@ -288,14 +288,14 @@ namespace QUIKSharp.QOrders
             {
                 if (ChildLimitOrder != null)
                 {
-                    logger.Error($"{this.GetType().Name}: (OrderNum:{this?.OrderNum}): AddLinkedOrder: field LinkedWith already have a value (OrderNum: {ChildLimitOrder?.OrderNum}) and will be overwritten with (OrderNum: {limitOrder?.OrderNum})");
+                    logger.Error($"{GetType().Name}: (OrderNum:{this?.OrderNum}): AddLinkedOrder: field LinkedWith already have a value (OrderNum: {ChildLimitOrder?.OrderNum}) and will be overwritten with (OrderNum: {limitOrder?.OrderNum})");
                 }
 
                 ChildLimitOrder = limitOrder;
 
                 if ((ChildLimitOrderNum != 0) && (ChildLimitOrderNum != limitOrder.OrderNum.Value))
                 {
-                    logger.Error($"{this.GetType().Name}: (OrderNum:{this?.OrderNum}): AddLinkedOrder: field ChildLimitOrderNum already have a value (OrderNum: {ChildLimitOrderNum}) and will be overwritten with (OrderNum: {limitOrder?.OrderNum})");
+                    logger.Error($"{GetType().Name}: (OrderNum:{this?.OrderNum}): AddLinkedOrder: field ChildLimitOrderNum already have a value (OrderNum: {ChildLimitOrderNum}) and will be overwritten with (OrderNum: {limitOrder?.OrderNum})");
                 }
 
                 ChildLimitOrderNum = limitOrder.OrderNum.Value;
@@ -371,7 +371,7 @@ namespace QUIKSharp.QOrders
             if (limitOrder == null) return;
             OnLinkedOrderQty(limitOrder, noCallEvents);
 
-            switch (this.State)
+            switch (State)
             {
                 case QOrderState.None:
                 case QOrderState.Placed:
@@ -451,10 +451,10 @@ namespace QUIKSharp.QOrders
 
         internal void OnLinkedOrderQty(QLimitOrder limitOrder, bool noCallEvents)
         {
-            long traded = this.QtyLeft - limitOrder.QtyLeft;
+            long traded = QtyLeft - limitOrder.QtyLeft;
             if (traded > 0)
             {
-                this.QtyLeft = limitOrder.QtyLeft;
+                QtyLeft = limitOrder.QtyLeft;
 
                 if (!noCallEvents)
                     CallEvent_OnPartial(traded);

@@ -80,8 +80,8 @@ namespace QUIKSharp.DataStructures
         public static implicit operator QuikDateTime(DateTime dt) => new QuikDateTime(dt);
         public static implicit operator DateTime(QuikDateTime qdt) => new DateTime(qdt.year, qdt.month, qdt.day, qdt.hour, qdt.min, qdt.sec, qdt.ms);
         public static implicit operator QuikDateTime(double dd) => new QuikDateTime(new DateTime().AddSeconds(dd));
-        public DateTime ToDateTime(IFormatProvider formatProvider) => new DateTime(this.year, this.month, this.day, this.hour, this.min, this.sec, this.ms);
-        public DateTime ToDateTime() => new DateTime(this.year, this.month, this.day, this.hour, this.min, this.sec, this.ms);
+        public DateTime ToDateTime(IFormatProvider formatProvider) => new DateTime(year, month, day, hour, min, sec, ms);
+        public DateTime ToDateTime() => new DateTime(year, month, day, hour, min, sec, ms);
         public int CompareTo(QuikDateTime qdt2)
         {
             if (year < qdt2.year) return -1;
@@ -115,7 +115,7 @@ namespace QUIKSharp.DataStructures
             => DateTime(this).CompareTo(other);
 
         public bool Equals(QuikDateTime other)
-            => this.CompareTo(other) == 0;
+            => CompareTo(other) == 0;
 
         public bool Equals(DateTime other)
             => DateTime(this).Equals(other);

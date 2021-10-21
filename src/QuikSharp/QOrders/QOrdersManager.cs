@@ -15,6 +15,8 @@ namespace QUIKSharp.QOrders
 
     public delegate void StopOrderEventHandler(Object sender, StopOrderEventArgs eventArgs);
 
+    public delegate void TransacErrorHandler(QOrdersActionType action, QOrder qOrder, TransactionReply transReply);
+
     public enum QOrdersActionType
     {
         PlaceOrder,
@@ -100,23 +102,12 @@ namespace QUIKSharp.QOrders
         /// </summary>
         /// <param name="quik"></param>
         /// <param name="timeout_wait_order">Макс. время (мкс.) ожидания выполнения транзакции сервером брокера. Если превышен, запрос будет повторен, и так до победного.</param>
-        /// <param name="max_parallel_tasks">Макс. количество параллельно выполняемых задач ( -1 - не ограниченно, параллелизм будет ограничен лишь возможностями используемого планировщика задач)</param>
-        /// <param name="tasks_query_capacity">Макс. длина очереди задач по операциям над ордерами</param>
         /// <param name="delay_on_timeout"> Пауза перед повторной попыткой, если словили Таймаут от сервера.</param>
-        public QOrdersManager(IQuik quik, int timeout_wait_order = 20000, int max_parallel_tasks = -1, int tasks_query_capacity = 100, int delay_on_timeout = 10)
+        public QOrdersManager(IQuik quik, int timeout_wait_order = 20000, int delay_on_timeout = 10)
         {
             Timeout_ms = timeout_wait_order;
-            this.Delay_on_Timeout = delay_on_timeout;
+            Delay_on_Timeout = delay_on_timeout;
 
-/*            actionQuery = new ActionBlock<QOrdersAction>(action: ActionBlockConsumer, dataflowBlockOptions: new ExecutionDataflowBlockOptions()
-            {
-                SingleProducerConstrained = false,
-                BoundedCapacity = tasks_query_capacity,
-                MaxDegreeOfParallelism = max_parallel_tasks,
-                TaskScheduler = TaskScheduler.Current,
-                CancellationToken = cancellation.Token,
-            });
-*/
             // Request Task
             // NB we use the token for signalling, could use a simple TCS
             var task_options = TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach | TaskCreationOptions.PreferFairness;
@@ -151,6 +142,8 @@ namespace QUIKSharp.QOrders
         public event LimitOrderEventHandler OnUpdateLimitOrder;
 
         public event StopOrderEventHandler OnUpdateStopOrder;
+
+        public event TransacErrorHandler OnTransacError;
 
         /// <summary>
         /// Пауза (ms) перед повторной попыткой, если словили Таймаут от сервера квик.
@@ -267,13 +260,13 @@ namespace QUIKSharp.QOrders
                         case TransactionStatus.QuikError:
                         case TransactionStatus.FailedToSend:
                             qOrder.KillMoveState = QOrderKillMoveState.ErrorRejected;
-                            Call_OnTransacError(QOrdersActionType.KIllOrder, qOrder, reply.ResultMsg);
+                            Call_OnTransacError(QOrdersActionType.KIllOrder, qOrder, reply.transReply);
                             return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
 
                         case TransactionStatus.TimeoutWaitReply:
                         case TransactionStatus.SendRecieveTimeout:
                             qOrder.KillMoveState = QOrderKillMoveState.WaitKill;
-                            Call_OnTransacError(QOrdersActionType.KIllOrder, qOrder, reply.ResultMsg);
+                            Call_OnTransacError(QOrdersActionType.KIllOrder, qOrder, reply.transReply);
                             if (Delay_on_Timeout > 0) await Task.Delay(Delay_on_Timeout, my_cancellation_token).ConfigureAwait(false);
                             continue;
                         case TransactionStatus.NoConnection:
@@ -380,7 +373,7 @@ namespace QUIKSharp.QOrders
                 var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(my_cancellation_token, timeoutCancel.Token);
 
                 qOrder.KillMoveState = QOrderKillMoveState.RequestedMove;
-                var reply = await quik.Transactions.SendWaitTransactionAsync(t, linked_CTS.Token).ConfigureAwait(false);
+                TransactionWaitResult reply = await quik.Transactions.SendWaitTransactionAsync(t, linked_CTS.Token).ConfigureAwait(false);
                 switch (reply.Status)
                 {
                     case TransactionStatus.Success:
@@ -407,8 +400,10 @@ namespace QUIKSharp.QOrders
                             if (!limit_orders.TryGetValue(NewOrderNum, out newqOrder))
                             {
                                 just_placed_new = true;
-                                newqOrder = new QLimitOrder(qOrder, CopyQtyMode.QtyLeft);
-                                newqOrder.OrderNum = NewOrderNum;
+                                newqOrder = new QLimitOrder(qOrder, CopyQtyMode.QtyLeft)
+                                {
+                                    OrderNum = NewOrderNum
+                                };
 
                                 // Небольшой хак, чтобы обеспечить последовательность вызова коллбеков
                                 newqOrder.SetQuikState(DataStructures.State.Active, true); // no call events
@@ -446,19 +441,30 @@ namespace QUIKSharp.QOrders
 
                         return new QOrderActionResult() { Result = true, ResultMsg = reply.ResultMsg };
 
-                    case TransactionStatus.LuaException:
-                    case TransactionStatus.TransactionException:
                     case TransactionStatus.QuikError:
-                    case TransactionStatus.FailedToSend:
+                        if (reply.transReply.Status == DataStructures.TransactionReplyStatus.RejectedByBroker)
+                        {
+                            // Ошибка перестановки заявок. [GW][332] "Нехватка средств по лимитам клиента.".
+                            qOrder.KillMoveState = QOrderKillMoveState.NoKill;
+                            Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.transReply);
+                            return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
+                        }
                         qOrder.State = QOrderState.ErrorRejected;
-                        Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.ResultMsg);
+                        qOrder.KillMoveState = QOrderKillMoveState.Killed;
+                        Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.transReply);
+                        return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
+                    case TransactionStatus.LuaException:
+                    case TransactionStatus.FailedToSend:
+                    case TransactionStatus.TransactionException:
+                        qOrder.KillMoveState = QOrderKillMoveState.NoKill;
+                        Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.transReply);
                         return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
 
                     case TransactionStatus.TimeoutWaitReply:
                     case TransactionStatus.SendRecieveTimeout:
                         qOrder.KillMoveState = QOrderKillMoveState.WaitMove;
                         if (Delay_on_Timeout > 0) await Task.Delay(Delay_on_Timeout, my_cancellation_token).ConfigureAwait(false);
-                        Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.ResultMsg);
+                        Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.transReply);
                         break;
 
                     case TransactionStatus.NoConnection:
@@ -501,7 +507,7 @@ namespace QUIKSharp.QOrders
 
                 var t = qOrder.PlaceOrderTransaction();
 
-                var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(this.cancellation.Token, cancellation_token);
+                var linked_CTS = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token, cancellation_token);
                 linked_CTS.CancelAfter(Timeout_ms);
                 qOrder.State = QOrderState.RequestedPlacement;
 
@@ -573,7 +579,7 @@ namespace QUIKSharp.QOrders
                         qOrder.State = QOrderState.ErrorRejected;
                         qorderByTransId.TryRemove(trans_id, out _);
 
-                        Call_OnTransacError(QOrdersActionType.PlaceOrder, qOrder, reply.ResultMsg);
+                        Call_OnTransacError(QOrdersActionType.PlaceOrder, qOrder, reply.transReply);
                         return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
 
                     case TransactionStatus.TimeoutWaitReply:
@@ -581,10 +587,10 @@ namespace QUIKSharp.QOrders
                         qOrder.State = QOrderState.WaitPlacement;
                         qorderByTransId.TryRemove(trans_id, out _);
 
-                        Call_OnTransacError(QOrdersActionType.PlaceOrder, qOrder, reply.ResultMsg);
+                        Call_OnTransacError(QOrdersActionType.PlaceOrder, qOrder, reply.transReply);
                         if (Delay_on_Timeout > 0)
                         {
-                            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(this.cancellation.Token, cancellation_token))
+                            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token, cancellation_token))
                             {
                                 await Task.Delay(Delay_on_Timeout, cts.Token).ConfigureAwait(false);
                             }
@@ -595,7 +601,7 @@ namespace QUIKSharp.QOrders
                         qOrder.State = QOrderState.WaitPlacement;
                         qorderByTransId.TryRemove(trans_id, out _);
 
-                        Call_OnTransacError(QOrdersActionType.PlaceOrder, qOrder, reply.ResultMsg);
+                        Call_OnTransacError(QOrdersActionType.PlaceOrder, qOrder, reply.transReply);
                         await NotifyOnConnected.WaitAsync.ConfigureAwait(false);
                         break;
                 }
@@ -730,10 +736,11 @@ namespace QUIKSharp.QOrders
             }
         }
 
-        private static void Call_OnTransacError(QOrdersActionType action, QOrder qOrder, string resultMsg)
+        private void Call_OnTransacError(QOrdersActionType action, QOrder qOrder, TransactionReply transactionReply)
         {
             // Вызывается из задачи
-            logger.Debug($"Call_OnTransacError on action {action}: {resultMsg}  for order {qOrder.ClassCode}:{qOrder.SecCode} {qOrder.Operation} {qOrder.Qty} qty on {qOrder.Price}");
+            logger.Debug($"Call_OnTransacError on action {action}: {transactionReply.ResultMsg}  for order {qOrder.ClassCode}:{qOrder.SecCode} {qOrder.Operation} {qOrder.Qty} qty on {qOrder.Price}");
+            OnTransacError?.Invoke(action, qOrder, transactionReply);
         }
 
         private Task ActionBlockConsumer(QOrdersAction action)
@@ -1136,7 +1143,7 @@ namespace QUIKSharp.QOrders
             if (!limit_trades.TryAdd(trade.TradeNum, trade))
                 return;
 
-            if (!this.limit_orders.TryGetValue(trade.OrderNum, out var limitOrder))
+            if (!limit_orders.TryGetValue(trade.OrderNum, out var limitOrder))
                 return;
 
             ProcessOrderTrade(trade.Quantity, limitOrder, noCallEvents);
