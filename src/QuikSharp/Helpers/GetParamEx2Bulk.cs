@@ -135,7 +135,7 @@ namespace QUIKSharp.Helpers
 
         public override int GetHashCode()
         {
-            int hashCode = 1448477480;
+            var hashCode = 1448477480;
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(ClassCode);
             hashCode = hashCode * -1521134295 + paramName.GetHashCode();
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(SecCode);

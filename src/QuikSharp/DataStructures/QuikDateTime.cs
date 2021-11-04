@@ -82,6 +82,7 @@ namespace QUIKSharp.DataStructures
         public static implicit operator QuikDateTime(double dd) => new QuikDateTime(new DateTime().AddSeconds(dd));
         public DateTime ToDateTime(IFormatProvider formatProvider) => new DateTime(year, month, day, hour, min, sec, ms);
         public DateTime ToDateTime() => new DateTime(year, month, day, hour, min, sec, ms);
+        public TimeSpan ToTimeSpan() => new TimeSpan(0, hour, min, sec, ms);
         public int CompareTo(QuikDateTime qdt2)
         {
             if (year < qdt2.year) return -1;

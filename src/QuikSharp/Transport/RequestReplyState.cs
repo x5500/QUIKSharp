@@ -2,10 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json.Linq;
-using NLog;
 using QUIKSharp.Converters;
 using System;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 

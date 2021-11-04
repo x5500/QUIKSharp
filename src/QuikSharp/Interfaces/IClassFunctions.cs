@@ -97,7 +97,7 @@ namespace QUIKSharp
         /// <param name="currCode"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<FuturesLimits> GetFuturesLimit(ITrader trader, int limitType, string currCode, CancellationToken cancellationToken);
+        Task<FuturesLimits> GetFuturesLimit(ITrader trader, FuturesLimitType limitType, string currCode, CancellationToken cancellationToken);
         /// <summary>
         ///  функция для получения информации по фьючерсным лимитам всех клиентских счетов
         /// </summary>
@@ -110,7 +110,7 @@ namespace QUIKSharp
         /// <param name="posType"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<FuturesClientHolding> GetFuturesHolding(ITradeSecurity tradeSec, int posType, CancellationToken cancellationToken);
+        Task<FuturesClientHolding> GetFuturesHolding(ITradeSecurity tradeSec, FuturesHoldingLimitType posType, CancellationToken cancellationToken);
 
         /// <summary>
         /// Функция для получения информации по фьючерсным позициям

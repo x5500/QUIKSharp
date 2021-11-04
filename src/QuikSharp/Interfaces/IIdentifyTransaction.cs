@@ -3,7 +3,6 @@
 
 using QUIKSharp.DataStructures;
 using QUIKSharp.DataStructures.Transaction;
-using System.Threading.Tasks;
 
 namespace QUIKSharp
 {

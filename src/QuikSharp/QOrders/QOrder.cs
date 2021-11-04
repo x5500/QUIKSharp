@@ -20,7 +20,7 @@ namespace QUIKSharp.QOrders
     public delegate void QOrderDelegate(QOrder sender);
     public delegate void QOrderDelegateMoved(QLimitOrder sender, QLimitOrder newOrder);
     public delegate void QOrderDelegateQty(QOrder sender, long last_filled_qty);
-    public abstract class QOrder : ICloneable
+    public abstract class QOrder : Events.TryCatchWrapEvent, ICloneable
     {
         protected static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -104,38 +104,10 @@ namespace QUIKSharp.QOrders
 
         public State QuikState { get; protected set; }
 
-        public string SecCode
-        {
-            get => TradeSecurity.SecCode;
-        }
-        public string ClassCode
-        {
-            get => TradeSecurity.ClassCode;
-        }
-        public string AccountID
-        {
-            get => TradeSecurity.AccountID;
-        }
-        public string ClientCode
-        {
-            get => TradeSecurity.ClientCode;
-        }
-
-        public event QOrderDelegate OnPlaced;
-
-        public event QOrderDelegate OnExecuted;
-
-        /// <summary>
-        /// Событие при полном исполнении ордера
-        /// </summary>
-        public event QOrderDelegate OnFilled;
-
-        public event QOrderDelegate OnKilled;
-
-        /// <summary>
-        /// Событие при частичном исполнении ордера
-        /// </summary>
-        public event QOrderDelegateQty OnPartial;
+        public string SecCode => TradeSecurity.SecCode;
+        public string ClassCode => TradeSecurity.ClassCode;
+        public string AccountID => TradeSecurity.AccountID;
+        public string ClientCode => TradeSecurity.ClientCode;
 
         public QOrder(ITradeSecurity ins, Operation operation, decimal price, long qty)
         {
@@ -361,30 +333,28 @@ namespace QUIKSharp.QOrders
             }
         }
 
-        internal void CallEvent_OnPlaced()
-        {
-            OnPlaced?.Invoke(this);
-        }
+        #region Events
+        public event QOrderDelegate OnPlaced;
 
-        internal void CallEvent_OnKilled()
-        {
-            OnKilled?.Invoke(this);
-        }
+        public event QOrderDelegate OnExecuted;
 
-        protected void CallEvent_OnExecuted()
-        {
-            OnExecuted?.Invoke(this);
-        }
+        /// <summary>
+        /// Событие при полном исполнении ордера
+        /// </summary>
+        public event QOrderDelegate OnFilled;
 
-        protected virtual void CallEvent_OnPartial(long filled_qty)
-        {
-            OnPartial?.Invoke(this, filled_qty);
-        }
+        public event QOrderDelegate OnKilled;
 
-        protected void CallEvent_OnFilled()
-        {
-            OnFilled?.Invoke(this);
-        }
+        /// <summary>
+        /// Событие при частичном исполнении ордера
+        /// </summary>
+        public event QOrderDelegateQty OnPartial;
+
+        internal void CallEvent_OnPlaced() => RunTheEvent(OnPlaced, this);
+        internal void CallEvent_OnKilled() => RunTheEvent(OnKilled, this);
+        protected void CallEvent_OnExecuted() => RunTheEvent(OnExecuted, this);
+        protected virtual void CallEvent_OnPartial(long filled_qty) => RunTheEvent(OnPartial, this);
+        protected void CallEvent_OnFilled() => RunTheEvent(OnFilled, this);
 
         public void ResetEvents()
         {
@@ -394,6 +364,9 @@ namespace QUIKSharp.QOrders
             OnFilled = null;
             OnKilled = null;
         }
+
+        #endregion
+
         protected virtual T BaseClone<T>() where T : QOrder
         {
             var clone = (T)base.MemberwiseClone();

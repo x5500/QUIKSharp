@@ -62,8 +62,8 @@ namespace QUIKSharp.Functions
         /// <summary>
         /// Функция для получения информации по фьючерсным лимитам
         /// </summary>
-        public Task<FuturesLimits> GetFuturesLimit(ITrader trader, int limitType, string currCode, CancellationToken cancellationToken)
-            => QuikService.SendAsync<FuturesLimits>(new MessageS(new string[] { trader.FirmId, trader.AccountID, limitType.ToString(), currCode.ToString() }, "getFuturesLimit"), cancellationToken);
+        public Task<FuturesLimits> GetFuturesLimit(ITrader trader, FuturesLimitType limitType, string currCode, CancellationToken cancellationToken)
+            => QuikService.SendAsync<FuturesLimits>(new MessageS(new string[] { trader.FirmId, trader.AccountID, ((int)limitType).ToString(), currCode.ToString() }, "getFuturesLimit"), cancellationToken);
         
         /// <summary>
         ///  функция для получения информации по фьючерсным лимитам всех клиентских счетов
@@ -74,9 +74,9 @@ namespace QUIKSharp.Functions
         /// <summary>
         /// getFuturesHolding - функция для получения информации по фьючерсной позиции
         /// </summary>
-        public Task<FuturesClientHolding> GetFuturesHolding(ITradeSecurity tradeSec, int posType, CancellationToken cancellationToken)
+        public Task<FuturesClientHolding> GetFuturesHolding(ITradeSecurity tradeSec, FuturesHoldingLimitType posType, CancellationToken cancellationToken)
         => QuikService.SendAsync<FuturesClientHolding>(
-                new MessageS(new string[] { tradeSec.FirmId, tradeSec.AccountID, tradeSec.SecCode, posType.ToString() }, "getFuturesHolding"), cancellationToken);
+                new MessageS(new string[] { tradeSec.FirmId, tradeSec.AccountID, tradeSec.SecCode, ((int)posType).ToString() }, "getFuturesHolding"), cancellationToken);
 
         /// <summary>
         /// getFuturesHoldings - функция для получения информации по фьючерсным позициям

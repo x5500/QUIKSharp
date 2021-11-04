@@ -28,6 +28,8 @@ namespace QUIKSharp.Transport
     /// </summary>
     public sealed class QuikService : IDisposable, IQuikService
     {
+        #region Static
+
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
         private static readonly Encoding encoding;
         private static readonly object StaticSync = new object();
@@ -119,6 +121,8 @@ namespace QUIKSharp.Transport
         /// EnablePerfomanceLog: Логировать инфоормацию о событиях, обработка которых заняла более PerfomanceLogThreshholdMS ms.
         /// </summary>
         public static long PerfomanceLogThreshholdMS { get; set; } = 10;
+        
+        #endregion
 
         /// <summary>
         /// Создает экземпляр QuikService
@@ -370,7 +374,7 @@ namespace QUIKSharp.Transport
                 if (!SendQueue.TryDequeue(out RequestReplyStateBase rr))
                 {
                     SendQueue_Avail.Reset();
-                    SendQueue_Avail.Wait(cancelToken);
+                    SendQueue_Avail.Wait(10000, cancelToken);
                     continue;
                 }
                 try
@@ -733,7 +737,7 @@ namespace QUIKSharp.Transport
                         Events.OnTransReplyCall(jtoken.FromJTokenMessage<TransactionReply>());
                         break;
                     case EventNames.NewCandle:
-                        Events.OnNewCandleEvent(jtoken.FromJTokenMessage<Candle>());
+                        Events.OnNewCandleCall(jtoken.FromJTokenMessage<Candle>());
                         break;
                     case EventNames.lua_error:
                         // an error from an event not request (from req is caught is response loop)
@@ -756,9 +760,7 @@ namespace QUIKSharp.Transport
             }
 
             void LogException(EventNames event_name, Exception e)
-            {
-                logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{event_name}'].Invoke():  {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
-            }
+                => logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{event_name}'].Invoke():  {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
         }
         public Task<TResult> SendAsync<TResult>(IMessage request) => SendAsync<TResult>(request, CancellationToken.None);
         public Task<TResult> SendAsync<TResult>(IMessage request, CancellationToken task_cancel)

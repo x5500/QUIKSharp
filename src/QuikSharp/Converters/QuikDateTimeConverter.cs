@@ -133,6 +133,11 @@ namespace QUIKSharp.Converters
             return res;
         }
 
+        /// <summary>
+        /// Конвертирует TimeSpan в строку в формате HHMMSS
+        /// </summary>
+        /// <param name="ts"></param>
+        /// <returns></returns>
         public static string TimeSpanToHHMMSS(TimeSpan ts)
         {
             var res = new StringBuilder("000000", 6);
@@ -146,6 +151,28 @@ namespace QUIKSharp.Converters
             res[3] = (char)('0' + mm % 10);
             res[4] = (char)('0' + ss / 10);
             res[5] = (char)('0' + ss % 10);
+
+            return res.ToString();
+        }
+
+        /// <summary>
+        /// Конвертирует TimeSpan в строку в формате HH:MM:SS
+        /// </summary>
+        /// <param name="ts"></param>
+        /// <returns></returns>
+        public static string TimeSpanTo_HH_MM_SS(TimeSpan ts)
+        {
+            var res = new StringBuilder("00:00:00", 8);
+            int hh = ts.Hours;
+            int mm = ts.Minutes;
+            int ss = ts.Seconds;
+
+            res[0] = (char)('0' + hh / 10);
+            res[1] = (char)('0' + hh % 10);
+            res[3] = (char)('0' + mm / 10);
+            res[4] = (char)('0' + mm % 10);
+            res[6] = (char)('0' + ss / 10);
+            res[7] = (char)('0' + ss % 10);
 
             return res.ToString();
         }
