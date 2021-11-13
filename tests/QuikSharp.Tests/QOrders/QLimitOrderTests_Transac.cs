@@ -49,7 +49,7 @@ namespace QuikSharp.Tests.QOrders
             long qty = 1;
             decimal price = 1.0m;
             var operation = Operation.Buy;
-            long OrderNum = 1234567890;
+            ulong OrderNum = 1234567890;
             var mode = TransactionMode.NewQty;
 
             var q = new QLimitOrder(emulator, operation, price, qty, ExecutionCondition.PUT_IN_QUEUE)

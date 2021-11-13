@@ -66,11 +66,11 @@ namespace QUIKSharp.QOrders
         /// <param name="copyQtyMode">Использовать неисполненный объем или полный обьем ордера?</param>
         public QLimitOrder(Order order, CopyQtyMode copyQtyMode) : base(
                 new UnattendedTradeSecurity { AccountID = order.Account, ClientCode = order.ClientCode, ClassCode = order.ClassCode, SecCode = order.SecCode },
-                operation: order.Flags.HasFlag(OrderTradeFlags.IsSell) ? Operation.Sell : Operation.Buy,
+                operation: order.Operation,
                 order.Price,
                 copyQtyMode == CopyQtyMode.Qty ? order.Quantity : copyQtyMode == CopyQtyMode.QtyLeft ? order.Balance : order.Quantity - order.Balance )
         {
-            OrderType = order.Flags.HasFlag(OrderTradeFlags.IsLimit) ? TransactionType.L : TransactionType.M;
+            OrderType = order.IsLimit ? TransactionType.L : TransactionType.M;
             switch (order.ExecType)
             {
                 case OrderExecType.FillOrKill:
@@ -140,7 +140,7 @@ namespace QUIKSharp.QOrders
             Operation = order.Operation;
             Price = order.Price;
 
-            OrderType = order.Flags.HasFlag(OrderTradeFlags.IsLimit) ? TransactionType.L : TransactionType.M;
+            OrderType = order.IsLimit ? TransactionType.L : TransactionType.M;
             switch (order.ExecType)
             {
                 case OrderExecType.FillOrKill:

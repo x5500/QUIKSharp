@@ -39,6 +39,7 @@ namespace QUIKSharp.Transport
         static QuikService()
         {
             System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             encoding = null;
             try
@@ -50,7 +51,6 @@ namespace QUIKSharp.Transport
             catch (NotSupportedException) { }
             if (encoding == null)
             {
-                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
                 encoding = Encoding.GetEncoding(1251);
             }
         }

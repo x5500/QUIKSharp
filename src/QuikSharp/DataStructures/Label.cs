@@ -140,8 +140,8 @@ namespace QUIKSharp.DataStructures
 
         internal string ToMsg()
         {
-            var strDate = QuikDateTimeConverter.DateTimeToYYYYMMDD(XDate);
-            var strTime = QuikDateTimeConverter.TimeSpanToHHMMSS(XTime);
+            var strDate = QuikDateTimeConverter.ToYYYYMMDD(XDate);
+            var strTime = QuikDateTimeConverter.ToHHMMSS(XTime);
 
             return string.Join("|", new string[]
             {

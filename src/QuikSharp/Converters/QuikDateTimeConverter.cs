@@ -52,6 +52,9 @@ namespace QUIKSharp.Converters
         /// <returns></returns>
         public static TimeSpan TimeStrToTimeSpan(string time_str)
         {
+            if (string.IsNullOrEmpty(time_str))
+                return TimeSpan.Zero;
+
             var div = time_str.IndexOf(':');
             if (div < 0)
             { // пхоже, что формат HHmmss[.ffff]
@@ -138,7 +141,7 @@ namespace QUIKSharp.Converters
         /// </summary>
         /// <param name="ts"></param>
         /// <returns></returns>
-        public static string TimeSpanToHHMMSS(TimeSpan ts)
+        public static string ToHHMMSS(this TimeSpan ts)
         {
             var res = new StringBuilder("000000", 6);
             int hh = ts.Hours;
@@ -160,7 +163,7 @@ namespace QUIKSharp.Converters
         /// </summary>
         /// <param name="ts"></param>
         /// <returns></returns>
-        public static string TimeSpanTo_HH_MM_SS(TimeSpan ts)
+        public static string ToHH_MM_SS(this TimeSpan ts)
         {
             var res = new StringBuilder("00:00:00", 8);
             int hh = ts.Hours;
@@ -177,7 +180,7 @@ namespace QUIKSharp.Converters
             return res.ToString();
         }
 
-        public static string DateTimeToYYYYMMDD(DateTime dateTime)
+        public static string ToYYYYMMDD(this DateTime dateTime)
         {
             var str = new StringBuilder("00000000", 8);
             int dd = dateTime.Day;

@@ -9,7 +9,6 @@ using NLog;
 using QUIKSharp.Transport;
 using System;
 using System.Buffers;
-using System.ComponentModel;
 using System.IO;
 using System.Text;
 
@@ -172,7 +171,7 @@ namespace QUIKSharp.Converters
         {
             if (!Enum.IsDefined(value.GetType(), value))
             {
-                logger.Error($"SafeEnumConverter: Try Serialize Enum({value.GetType().Name}) with value not defined in Enum: '{value.ToString()}'. Null value will be written.");
+                logger.Error($"SafeEnumConverter: Try Serialize Enum({value.GetType().Name}) with value not defined in Enum: '{value}'. Null value will be written.");
                 value = null;
             }
             base.WriteJson(writer, value, serializer);
@@ -181,7 +180,6 @@ namespace QUIKSharp.Converters
 
     public class NUMBER_Converter<T> : JsonConverter
     {
-        private static readonly TypeConverter typeConverter = TypeDescriptor.GetConverter(typeof(T));
         public override bool CanConvert(Type objectType)
         {
             if (objectType.Equals(typeof(T))) return true;
@@ -249,7 +247,7 @@ namespace QUIKSharp.Converters
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            JToken.FromObject(QuikDateTimeConverter.TimeSpanToHHMMSS((TimeSpan)value)).WriteTo(writer);
+            JToken.FromObject(QuikDateTimeConverter.ToHHMMSS((TimeSpan)value)).WriteTo(writer);
         }
     }
 
@@ -269,7 +267,7 @@ namespace QUIKSharp.Converters
             return result;
         }
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-            => JToken.FromObject(QuikDateTimeConverter.DateTimeToYYYYMMDD((DateTime)value)).WriteTo(writer);
+            => JToken.FromObject(QuikDateTimeConverter.ToYYYYMMDD((DateTime)value)).WriteTo(writer);
     }
     public class JsonArrayPool : IArrayPool<char>
     {

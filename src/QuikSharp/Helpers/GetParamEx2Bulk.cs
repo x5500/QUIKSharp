@@ -115,7 +115,7 @@ namespace QUIKSharp.Helpers
             else
             {
                 if (valueType.IsPrimitive)
-                    new_value = default(T);
+                    new_value = default;
                 else
                     new_value = (T)Activator.CreateInstance(valueType);
             }

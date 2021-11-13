@@ -51,7 +51,7 @@ namespace QUIKSharp.TestQuik
         public System.Data.DataSet DataSet1 { get; private set; }
         public DateTime PlayerStart { get; set; }
         public DateTime PlayerEnd { get; set; }
-        public DateTime LastDateTime { get; private set; }
+        public DateTime CurrentTimestamp { get; private set; }
 
         private readonly Dictionary<string, int> DtPos = new Dictionary<string, int>();
 
@@ -130,7 +130,7 @@ namespace QUIKSharp.TestQuik
             }
 
             PlayerStart = min;
-            LastDateTime = min;
+            CurrentTimestamp = min;
             if (PlayerEnd < PlayerStart)
                 PlayerEnd = DateTime.MaxValue;
         }
@@ -204,7 +204,7 @@ namespace QUIKSharp.TestQuik
 
         private void SetLastDate(DateTime date)
         {
-            LastDateTime = date;
+            CurrentTimestamp = date;
             testService._TradeDate = date;
         }
 

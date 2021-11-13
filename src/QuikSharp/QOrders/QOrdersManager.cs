@@ -736,13 +736,22 @@ namespace QUIKSharp.QOrders
                 {
                     foreach (var order in limit_orders.Result)
                         if (order.OrderNum > 0)
-                            AddNewLimitOrder(order, true);
+                            Events_OnOrder(order);
 
                     foreach (var order in stop_orders.Result)
-                        AddNewStopOrder(order, true);
+                        Events_OnStopOrder(order);
 
-                    foreach (var trade in trades.Result)
-                        TryAddNewTrade(trade, true);
+                    rwLock.EnterWriteLock();
+                    try
+                    {
+                        foreach (var trade in trades.Result)
+                            TryAddNewTrade(trade, true);
+                    }
+                    finally
+                    {
+                        rwLock.ExitWriteLock();
+                    }
+
                 }, cancellationToken: stop_all_cancellation.Token,
                 continuationOptions: TaskContinuationOptions.AttachedToParent | TaskContinuationOptions.OnlyOnRanToCompletion,
                 TaskScheduler.Default);

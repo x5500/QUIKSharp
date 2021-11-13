@@ -13,6 +13,10 @@ namespace QUIKSharp
         TimeSpan DefaultSendTimeout { get; set; }
         
         /// <summary>
+        /// Текущее системное время
+        /// </summary>
+        DateTime CurrentTimestamp { get;  }
+        /// <summary>
         /// Установлено ли соединение с LUA сервисом QUIKSharp на клиенском рабочем месте Quik
         /// </summary>
         bool IsServiceConnected { get; }
@@ -25,12 +29,14 @@ namespace QUIKSharp
         /// </summary>
         IClassFunctions Class { get; }
         IDebugFunctions Debug { get; }
-
         /// <summary>
         /// Implements all Quik callback functions to be processed on .NET side.
         /// These functions are called by Quik inside QLUA.
         /// </summary>
         IQuikEvents Events { get; }
+        /// <summary>
+        /// Функции для работы со стаканом заявок (L2).
+        /// </summary>
         IOrderBookFunctions OrderBook { get; }
         /// <summary>
         /// Функции для работы с заявками.

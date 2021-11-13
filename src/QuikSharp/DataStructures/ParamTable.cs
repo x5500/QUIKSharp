@@ -3,6 +3,7 @@
 
 using Newtonsoft.Json;
 using QUIKSharp.Converters;
+using System;
 
 namespace QUIKSharp.DataStructures
 {
@@ -57,21 +58,25 @@ namespace QUIKSharp.DataStructures
             {
                 if (Result == 0) // «0» – ошибка;
                     return null;
-
                 switch (ParamType)
                 {
-                    case ParamTableType.DOUBLE:
-                        return Converters.Number<double>.FromString(ParamValue);
-                    case ParamTableType.LONG:
-                        return Converters.Number<long>.FromString(ParamValue);
                     case ParamTableType.CHAR:
                         return ParamImage;
+                    case ParamTableType.DOUBLE:
+                        try { return Converters.Number<double>.FromString(ParamValue); }
+                        catch (ArgumentException) { return default(double); };
+                    case ParamTableType.LONG:
+                        try { return Converters.Number<long>.FromString(ParamValue); }
+                        catch (ArgumentException) { return default(long); };
                     case ParamTableType.ENUM:
-                        return Converters.Number<long>.FromString(ParamValue);
+                        try { return Converters.Number<long>.FromString(ParamValue); }
+                        catch (ArgumentException) { return default(long); };
                     case ParamTableType.TIME:
-                        return QuikDateTimeConverter.TimeStrToTimeSpan(ParamValue);
+                        try { return QuikDateTimeConverter.TimeStrToTimeSpan(ParamValue); }
+                        catch (ArgumentException) { return default(DateTime); };
                     case ParamTableType.DATE:
-                        return QuikDateTimeConverter.QuikDateStrToDateTime(ParamValue);
+                        try { return QuikDateTimeConverter.QuikDateStrToDateTime(ParamValue); }
+                        catch (ArgumentException) { return default(DateTime); };
                 };
                 return null;
             }

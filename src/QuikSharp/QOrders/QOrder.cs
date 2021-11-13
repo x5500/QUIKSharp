@@ -240,7 +240,7 @@ namespace QUIKSharp.QOrders
 
         protected void SetTransacExpityDate(Transaction t)
         {
-            t.EXPIRY_DATE = ExpireEndOfDay ? "TODAY" : Expiry.Date > DateTime.MinValue ? QuikDateTimeConverter.DateTimeToYYYYMMDD(Expiry.Date) : "GTC";
+            t.EXPIRY_DATE = ExpireEndOfDay ? "TODAY" : Expiry.Date > DateTime.MinValue ? QuikDateTimeConverter.ToYYYYMMDD(Expiry.Date) : "GTC";
         }
         internal virtual void SetQuikState(State new_state, bool noCallEvents)
         {
@@ -353,7 +353,7 @@ namespace QUIKSharp.QOrders
         internal void CallEvent_OnPlaced() => RunTheEvent(OnPlaced, this);
         internal void CallEvent_OnKilled() => RunTheEvent(OnKilled, this);
         protected void CallEvent_OnExecuted() => RunTheEvent(OnExecuted, this);
-        protected virtual void CallEvent_OnPartial(long filled_qty) => RunTheEvent(OnPartial, this);
+        protected virtual void CallEvent_OnPartial(long filled_qty) => RunTheEvent(OnPartial, this, filled_qty);
         protected void CallEvent_OnFilled() => RunTheEvent(OnFilled, this);
 
         public void ResetEvents()

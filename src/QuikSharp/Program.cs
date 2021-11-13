@@ -170,9 +170,11 @@ namespace QUIKSharp
 
             #endregion Example
 
-            var sec = new Param();
-            sec.ClassCode = "SPBOPT";
-            sec.SecCode = "SFZ1";
+            var sec = new Param
+            {
+                ClassCode = "SPBOPT",
+                SecCode = "SFZ1"
+            };
             var ob = _quik.Trading.GetOptionBoard(sec, CancellationToken.None).Result;
             foreach(var op in ob)
             {
@@ -185,21 +187,6 @@ namespace QUIKSharp
             }
         }
 
-        private static void Events_OnOrder(DataStructures.Transaction.Order order)
-        {
-            Console.WriteLine("Events_OnOrder: " + order.ToJson());
-        }
-
-        private static void Events_OnQuote(OrderBook ob)
-        {
-            Console.WriteLine("Events_OnQuote: " + ob.ToJson());
-        }
-
-        private static void Events_OnAllTrade(DataStructures.AllTrade allTrade)
-        {
-            Console.WriteLine("Events_OnAllTrade: " + allTrade.ToJson());
-        }
-
         private static void Events_OnClose()
         {
             Console.WriteLine("Events_OnQuote: ");
@@ -208,11 +195,6 @@ namespace QUIKSharp
         private static void Events_OnStop(int signal)
         {
             Console.WriteLine("Events_OnStop: " + signal);
-        }
-
-        private static void Events_OnStopOrder(StopOrder stopOrder)
-        {
-            Console.WriteLine("Events_OnStopOrder: " + stopOrder.ToJson());
         }
 
         private static void Cleanup()

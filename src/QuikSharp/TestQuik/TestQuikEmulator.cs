@@ -23,6 +23,7 @@ namespace QUIKSharp.TestQuik
     {
         bool IQuik.IsServiceConnected => true;
         public TimeSpan DefaultSendTimeout { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public DateTime CurrentTimestamp => DateTime.Now;
         public ICandleFunctions Candles => throw new NotImplementedException();
         public IClassFunctions Class => throw new NotImplementedException();
         public IDebugFunctions Debug { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
@@ -353,21 +354,7 @@ namespace QUIKSharp.TestQuik
 
         public void SetOrderState(State quikState, Order order)
         {
-            order.Flags &= ~(OrderTradeFlags.Active | OrderTradeFlags.Canceled | OrderTradeFlags.Rejected);
-            switch (quikState)
-            {
-                case State.Active:
-                    order.Flags |= OrderTradeFlags.Active;
-                    break;
-                case State.Completed:
-                    break;
-                case State.Canceled:
-                    order.Flags |= OrderTradeFlags.Canceled;
-                    break;
-                case State.Rejected:
-                    order.Flags |= OrderTradeFlags.Rejected;
-                    break;
-            }
+            order.State = quikState;
         }
 
         public void SetOrderState(State quikState, StopOrder order)

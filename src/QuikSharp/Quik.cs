@@ -132,6 +132,11 @@ namespace QUIKSharp
         /// </summary>
         public ITransactionsFunctions Transactions => _Transactions;
 
+        /// <summary>
+        /// Текущее системное время
+        /// </summary>
+        public DateTime CurrentTimestamp => DateTime.Now;
+
         private void Dispose(bool disposing)
         {
             if (!disposedValue)

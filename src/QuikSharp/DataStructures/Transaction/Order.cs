@@ -443,8 +443,74 @@ namespace QUIKSharp.DataStructures.Transaction
         /// Состояние заявки.
         /// </summary>
         [JsonIgnore]
-        public State State => Flags.HasFlag(OrderTradeFlags.Active) ? State.Active
-            : Flags.HasFlag(OrderTradeFlags.Canceled) ? State.Canceled
-            : Flags.HasFlag(OrderTradeFlags.Rejected) ? State.Rejected : State.Completed;
+        public State State
+        {
+            get => Flags.HasFlag(OrderTradeFlags.Active) ? State.Active
+                        : Flags.HasFlag(OrderTradeFlags.Canceled) ? State.Canceled
+                        : Flags.HasFlag(OrderTradeFlags.Rejected) ? State.Rejected : State.Completed;
+            set
+            {
+                const OrderTradeFlags clearmask = ~(OrderTradeFlags.Active | OrderTradeFlags.Canceled | OrderTradeFlags.Rejected);
+                switch (value)
+                {
+                    case State.Active:
+                        Flags = (Flags & clearmask) | OrderTradeFlags.Active;
+                        break;
+                    case State.Canceled:
+                        Flags = (Flags & clearmask) | OrderTradeFlags.Canceled;
+                        break;
+                    case State.Rejected:
+                        Flags = (Flags & clearmask) | OrderTradeFlags.Rejected;
+                        break;
+                    case State.Completed:
+                        Flags &= clearmask;
+                        break;
+                }
+            }
+        }
+        /// <summary>
+        /// Тип операции - Buy или Sell
+        /// </summary>
+        [JsonIgnore]
+        public bool IsSell
+        {
+            get => Flags.HasFlag(OrderTradeFlags.IsSell);
+            set => Flags = value ? (Flags | OrderTradeFlags.IsSell) : (Flags & ~OrderTradeFlags.IsSell);
+        }
+
+        /// <summary>
+        /// Признак лимитного ордера
+        /// </summary>
+        [JsonIgnore]
+        public bool IsLimit
+        {
+            get => Flags.HasFlag(OrderTradeFlags.IsLimit);
+            set => Flags = value ? (Flags | OrderTradeFlags.IsLimit) : (Flags & ~OrderTradeFlags.IsLimit);
+        }
+
+        /// <summary>
+        /// Признак состояние заявки Active
+        /// </summary>
+        [JsonIgnore]
+        public bool IsActive => Flags.HasFlag(OrderTradeFlags.Active);
+
+        /// <summary>
+        /// Признак состояние заявки Canceled
+        /// </summary>
+        [JsonIgnore]
+        public bool IsCancelled => !IsActive && Flags.HasFlag(OrderTradeFlags.Canceled);
+
+        /// <summary>
+        /// Признак состояние заявки Rejected
+        /// </summary>
+        [JsonIgnore]
+        public bool IsRejected => !IsActive && Flags.HasFlag(OrderTradeFlags.Rejected);
+
+        /// <summary>
+        /// Признак состояние заявки Completed
+        /// </summary>
+        [JsonIgnore]
+        public bool IsCompleted => (Flags & (OrderTradeFlags.Active | OrderTradeFlags.Canceled | OrderTradeFlags.Rejected)) == OrderTradeFlags.None;
+
     }
 }

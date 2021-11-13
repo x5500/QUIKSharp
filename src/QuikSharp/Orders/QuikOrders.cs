@@ -507,8 +507,8 @@ namespace QUIKSharp.Orders
                 SecCode = orderNew.SecCode,
                 QUANTITY = orderNew.Quantity,
                 PRICE = orderNew.Price,
-                OPERATION = orderNew.Flags.HasFlag(OrderTradeFlags.IsSell) ? TransactionOperation.S : TransactionOperation.B,
-                TYPE = orderNew.Flags.HasFlag(OrderTradeFlags.IsLimit) ? TransactionType.L : TransactionType.M,
+                OPERATION = orderNew.IsSell ? TransactionOperation.S : TransactionOperation.B,
+                TYPE = orderNew.IsLimit ? TransactionType.L : TransactionType.M,
                 CLIENT_CODE = orderNew.ClientCode,
             };
 
@@ -530,7 +530,7 @@ namespace QUIKSharp.Orders
 
             t.EXPIRY_DATE = orderNew.ExecType == OrderExecType.WhileThisSession ? "TODAY"
                 : orderNew.ExecType == OrderExecType.GoodTillCancelled ? "GTC"
-                : orderNew.ExpiryDate > DateTime.MinValue ? QuikDateTimeConverter.DateTimeToYYYYMMDD(orderNew.ExpiryDate)
+                : orderNew.ExpiryDate > DateTime.MinValue ? QuikDateTimeConverter.ToYYYYMMDD(orderNew.ExpiryDate)
                 : "GTC";
 
             return SendWaitTransactionAsync(t);
@@ -593,7 +593,7 @@ namespace QUIKSharp.Orders
             t.EXPIRY_DATE = orderNew.StopFlags.HasFlag(StopBehaviorFlags.ExpireEndOfDay)
                 ? "TODAY"
                 : orderNew.Expiry > DateTime.MinValue
-                ? QuikDateTimeConverter.DateTimeToYYYYMMDD(orderNew.Expiry)
+                ? QuikDateTimeConverter.ToYYYYMMDD(orderNew.Expiry)
                 : "GTC";
 
             if (orderNew.StopOrderType == StopOrderType.TakeProfitStopLimit)
