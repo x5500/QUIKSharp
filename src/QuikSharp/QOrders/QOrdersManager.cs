@@ -176,6 +176,7 @@ namespace QUIKSharp.QOrders
         /// </summary>
         private readonly ConcurrentQueue<QOrdersAction> ActionQueue = new ConcurrentQueue<QOrdersAction>();
         private readonly ManualResetEventSlim ActionQueue_Avail = new ManualResetEventSlim(false);
+        private int RunningTasksCount = 0;
 
         private void RequestTaskLoop()
         {
@@ -191,6 +192,7 @@ namespace QUIKSharp.QOrders
                 }
                 try
                 {
+                    Interlocked.Increment(ref RunningTasksCount);
                     Task task;
                     switch (_action.action)
                     {
@@ -210,7 +212,8 @@ namespace QUIKSharp.QOrders
                             logger.Fatal($"QOrder ActionBlockConsumer Failed: Not implemented for '{_action.action}'");
                             continue;
                     }
-                    task.ContinueWith(LogTaskException, _action.action.ToString(), continuationOptions: TaskContinuationOptions.OnlyOnFaulted); ;
+                    task.ContinueWith(LogTaskException, _action.action.ToString(), continuationOptions: TaskContinuationOptions.OnlyOnFaulted);
+                    task.ContinueWith(OnTaskCompleted, continuationOptions: TaskContinuationOptions.ExecuteSynchronously);
                 }
                 catch (Exception e)
                 {
@@ -223,7 +226,27 @@ namespace QUIKSharp.QOrders
             var exc = task.Exception.InnerException ?? task.Exception;
             logger.Fatal(exc, $"Exception running task {task_name}: {exc.Message}\n  --- Exception Trace: ---- \n{exc.StackTrace}\n--- Exception trace ----");
         }
+        private void OnTaskCompleted(Task task)
+        {
+            Interlocked.Decrement(ref RunningTasksCount);
+        }
 
+        /// <summary>
+        /// Ждет выполнения всех задач в очереди ActionQueue
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public Task WaitAllTasksRun(CancellationToken cancellationToken)
+        {
+            if ((RunningTasksCount == 0) && !ActionQueue_Avail.IsSet)
+                return Task.CompletedTask;
+
+            return Task.Run(async () =>
+            {
+                while ((RunningTasksCount > 0) || ActionQueue_Avail.IsSet)
+                    await Task.Delay(1, cancellationToken);
+            }, cancellationToken);
+        }
         #endregion
 
         #region Place Tasks in Query
@@ -323,8 +346,7 @@ namespace QUIKSharp.QOrders
 
             while (!stop_all_cancellation.IsCancellationRequested)
             {
-                if (qOrder.KillMoveState != QOrderKillMoveState.WaitKill)
-                    break;
+                if (qOrder.KillMoveState != QOrderKillMoveState.WaitKill) break;
 
                 if (qOrder.State == QOrderState.None)
                 {
@@ -378,6 +400,12 @@ namespace QUIKSharp.QOrders
                         case TransactionStatus.TransactionException:
                         case TransactionStatus.QuikError:
                         case TransactionStatus.FailedToSend:
+                            // Вы не можете снять данную заявку
+                            if ((reply.transReply != null)&&(reply.transReply.ErrorCode == 8635230))
+                            {
+                                qOrder.KillMoveState = QOrderKillMoveState.Killed;
+                                return new QOrderActionResult() { Result = true, ResultMsg = reply.ResultMsg };
+                            }
                             qOrder.KillMoveState = QOrderKillMoveState.ErrorRejected;
                             Call_OnTransacError(QOrdersActionType.KIllOrder, qOrder, reply.transReply);
                             return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
@@ -397,7 +425,7 @@ namespace QUIKSharp.QOrders
                     }
                 }
 
-                if ((qOrder.State == QOrderState.Executed) || (qOrder.State == QOrderState.Killed))
+                if ((qOrder.State == QOrderState.Executed) || (qOrder.State == QOrderState.Killed) || (qOrder.State == QOrderState.ErrorRejected))
                 {
                     qOrder.KillMoveState = QOrderKillMoveState.Killed;
                     return new QOrderActionResult() { Result = true, ResultMsg = "Order " + qOrder.State.ToString() }; ;
@@ -532,7 +560,7 @@ namespace QUIKSharp.QOrders
                         return new QOrderActionResult() { Result = true, NewOrder =newqOrder, ResultMsg = reply.ResultMsg };
 
                     case TransactionStatus.QuikError:
-                        if (reply.transReply.Status == DataStructures.TransactionReplyStatus.RejectedByBroker)
+                        if ((reply.transReply.Status == DataStructures.TransactionReplyStatus.RejectedByBroker)|| (reply.transReply.Status == DataStructures.TransactionReplyStatus.RejectedOnRestrictions))
                         {
                             // Ошибка перестановки заявок. [GW][332] "Нехватка средств по лимитам клиента.".
                             qOrder.KillMoveState = QOrderKillMoveState.NoKill;
@@ -557,8 +585,7 @@ namespace QUIKSharp.QOrders
                                 break;
                             }
                         }
-                        qOrder.State = QOrderState.ErrorRejected;
-                        qOrder.KillMoveState = QOrderKillMoveState.Killed;
+                        qOrder.KillMoveState = QOrderKillMoveState.NoKill;
                         Call_OnTransacError(QOrdersActionType.MoveOrder, qOrder, reply.transReply);
                         return new QOrderActionResult() { Result = false, ResultMsg = reply.ResultMsg };
                     case TransactionStatus.LuaException:

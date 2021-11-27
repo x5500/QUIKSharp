@@ -758,10 +758,8 @@ namespace QUIKSharp.Transport
             {
                 LogException(eventName, e);
             }
-
-            void LogException(EventNames event_name, Exception e)
-                => logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{event_name}'].Invoke():  {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
         }
+        private static void LogException(EventNames event_name, Exception e) => logger.Error(e, $"ProcessCallbackMessage: Exception in Event['{event_name}'].Invoke():  {e.Message}\n  --- Exception Trace: ---- \n{e.StackTrace}\n--- Exception trace ----");
         public Task<TResult> SendAsync<TResult>(IMessage request) => SendAsync<TResult>(request, CancellationToken.None);
         public Task<TResult> SendAsync<TResult>(IMessage request, CancellationToken task_cancel)
         {

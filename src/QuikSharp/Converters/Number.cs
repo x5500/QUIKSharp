@@ -26,7 +26,19 @@ namespace QUIKSharp.Converters
 
             if (myType.IsValueType)
             {
-                if ((myType == typeof(decimal)) || (myType == typeof(float)) || (myType == typeof(double)))
+                if (myType == typeof(decimal))
+                {
+                    FromString = value => ConvertToDecimalType(value);
+                    ToBase64T = value => Base64Encode_double(value);
+                }
+                else
+                if (myType == typeof(double))
+                {
+                    FromString = value => ConvertToRealType(value);
+                    ToBase64T = value => Base64Encode_double(value);
+                }
+                else
+                if (myType == typeof(float))
                 {
                     FromString = value => ConvertToRealType(value);
                     ToBase64T = value => Base64Encode_double(value);
@@ -50,6 +62,18 @@ namespace QUIKSharp.Converters
         {
             if (TryConvertBase64Encoded(value, out var result)) return result;
             return (T)TypeConverter.ConvertFromInvariantString(value.Replace(separators[0], separator));
+        }
+        private static T ConvertToDecimalType(string value)
+        {
+            if (TryConvertBase64Encoded(value, out var result)) return result;
+            value = value.Replace(separators[0], separator);
+            if ((value.IndexOf('e') != -1) || (value.IndexOf('E') != -1))
+            {
+                var as_double = double.Parse(value);
+                return (T)TypeConverter.ConvertFrom(as_double);
+            }
+            else
+                return (T)TypeConverter.ConvertFromInvariantString(value);
         }
         private static T ConvertToIntegralType(string value)
         {
@@ -104,7 +128,6 @@ namespace QUIKSharp.Converters
             result = default;
             return false;
         }
-
         public static string Base64EncodeT(byte[] src, byte label)
         {
             byte[] dst = new byte[14] { label, (byte)'=', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };

@@ -4,8 +4,6 @@ using QUIKSharp.DataStructures;
 using QUIKSharp.DataStructures.Transaction;
 using System;
 
-#pragma warning disable CS1591 // Отсутствует комментарий XML для открытого видимого типа или члена
-
 namespace QUIKSharp.TestQuik
 {
     public class TestEvents : IQuikEvents
@@ -280,4 +278,3 @@ namespace QUIKSharp.TestQuik
         }
     }
 }
-#pragma warning restore CS1591 // Отсутствует комментарий XML для открытого видимого типа или чле

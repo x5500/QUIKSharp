@@ -164,7 +164,7 @@ namespace QUIKSharp.Converters
                         return Enum.ToObject(objectType, int_val);
                     }
                 default:
-                    throw new Exception($"SafeEnumConverter: Unexpected token. Expected String or Integer,Float, got '{reader.TokenType}'.");
+                    throw new Exception($"SafeEnumConverter: Unexpected token. Expected Token: String or Integer,Float, got '{reader.TokenType}'.");
             }
         }
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
